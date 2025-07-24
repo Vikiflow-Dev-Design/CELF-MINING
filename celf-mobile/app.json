@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "CELF Mining App",
+    "slug": "celf-mobile-app",
+    "version": "1.0.0",
+    "scheme": "celf",
+
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+
+    "experiments": {
+      "tsconfigPaths": true,
+      "typedRoutes": true
+    },
+
+    "plugins": ["expo-router"],
+
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+
+    "userInterfaceStyle": "light",
+
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E40AF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.celf.miningapp"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E40AF"
+      },
+      "package": "com.celf.miningapp"
+    }
+  }
+}
