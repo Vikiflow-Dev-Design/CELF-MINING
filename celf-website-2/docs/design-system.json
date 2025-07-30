@@ -1,0 +1,303 @@
+{
+  "designSystem": {
+    "brandColors": {
+      "primary": "#9EFF00",
+      "primaryDark": "#7ACC00",
+      "accent": "#00FF94",
+      "background": "#0A0A0A",
+      "backgroundSecondary": "#1A1A1A",
+      "text": "#FFFFFF",
+      "textSecondary": "#B0B0B0",
+      "textMuted": "#808080"
+    },
+    "gradients": {
+      "primaryGlow": "radial-gradient(circle, rgba(158, 255, 0, 0.3) 0%, rgba(158, 255, 0, 0) 70%)",
+      "cardGlow": "radial-gradient(circle at center, rgba(158, 255, 0, 0.1) 0%, transparent 50%)",
+      "heroBackground": "radial-gradient(ellipse at center, rgba(158, 255, 0, 0.05) 0%, transparent 70%)"
+    },
+    "elementStyling": {
+      "navigation": {
+        "background": "rgba(10, 10, 10, 0.95)",
+        "backdrop": "blur(10px)",
+        "border": "1px solid rgba(158, 255, 0, 0.1)",
+        "logo": {
+          "background": "#9EFF00",
+          "text": "#000000",
+          "borderRadius": "8px",
+          "padding": "8px 12px"
+        },
+        "links": {
+          "text": "#FFFFFF",
+          "hover": {
+            "text": "#9EFF00"
+          }
+        },
+        "ctaButton": {
+          "background": "transparent",
+          "border": "1px solid #9EFF00",
+          "text": "#9EFF00",
+          "borderRadius": "24px",
+          "padding": "8px 20px",
+          "hover": {
+            "background": "#9EFF00",
+            "text": "#000000"
+          }
+        }
+      },
+      "hero": {
+        "background": "#0A0A0A",
+        "overlay": "radial-gradient(ellipse at center, rgba(158, 255, 0, 0.05) 0%, transparent 70%)",
+        "title": {
+          "text": "#FFFFFF",
+          "fontSize": "clamp(2.5rem, 8vw, 6rem)",
+          "fontWeight": "700",
+          "lineHeight": "1.1"
+        },
+        "subtitle": {
+          "text": "#B0B0B0",
+          "fontSize": "1.25rem",
+          "fontWeight": "400"
+        },
+        "ctaButton": {
+          "background": "#9EFF00",
+          "text": "#000000",
+          "borderRadius": "12px",
+          "padding": "16px 32px",
+          "fontSize": "1.1rem",
+          "fontWeight": "600",
+          "hover": {
+            "background": "#7ACC00",
+            "transform": "translateY(-2px)"
+          }
+        }
+      },
+      "cards": {
+        "background": "rgba(26, 26, 26, 0.8)",
+        "border": "1px solid rgba(158, 255, 0, 0.1)",
+        "borderRadius": "16px",
+        "padding": "24px",
+        "backdrop": "blur(10px)",
+        "shadow": "0 8px 32px rgba(0, 0, 0, 0.3)",
+        "hover": {
+          "border": "1px solid rgba(158, 255, 0, 0.3)",
+          "transform": "translateY(-4px)",
+          "shadow": "0 12px 48px rgba(0, 0, 0, 0.4)"
+        },
+        "title": {
+          "text": "#FFFFFF",
+          "fontSize": "1.5rem",
+          "fontWeight": "600"
+        },
+        "description": {
+          "text": "#B0B0B0",
+          "fontSize": "1rem",
+          "lineHeight": "1.6"
+        },
+        "icon": {
+          "background": "rgba(158, 255, 0, 0.1)",
+          "fill": "#9EFF00",
+          "borderRadius": "12px",
+          "padding": "12px",
+          "size": "48px"
+        }
+      },
+      "blogCards": {
+        "background": "rgba(26, 26, 26, 0.9)",
+        "border": "1px solid rgba(255, 255, 255, 0.1)",
+        "borderRadius": "12px",
+        "overflow": "hidden",
+        "hover": {
+          "border": "1px solid rgba(158, 255, 0, 0.3)",
+          "transform": "translateY(-2px)"
+        },
+        "image": {
+          "aspectRatio": "16/9",
+          "objectFit": "cover"
+        },
+        "content": {
+          "padding": "20px",
+          "background": "rgba(26, 26, 26, 0.95)"
+        },
+        "date": {
+          "text": "#9EFF00",
+          "fontSize": "0.875rem",
+          "fontWeight": "500"
+        },
+        "title": {
+          "text": "#FFFFFF",
+          "fontSize": "1.25rem",
+          "fontWeight": "600",
+          "marginBottom": "8px"
+        },
+        "description": {
+          "text": "#B0B0B0",
+          "fontSize": "0.95rem",
+          "lineHeight": "1.5"
+        },
+        "readMore": {
+          "background": "rgba(158, 255, 0, 0.1)",
+          "border": "1px solid rgba(158, 255, 0, 0.3)",
+          "text": "#9EFF00",
+          "borderRadius": "20px",
+          "padding": "6px 16px",
+          "fontSize": "0.875rem",
+          "hover": {
+            "background": "#9EFF00",
+            "text": "#000000"
+          }
+        }
+      },
+      "deviceMockups": {
+        "background": "linear-gradient(145deg, #2A2A2A 0%, #1A1A1A 100%)",
+        "border": "1px solid rgba(255, 255, 255, 0.1)",
+        "borderRadius": "20px",
+        "shadow": "0 20px 60px rgba(0, 0, 0, 0.5)",
+        "screen": {
+          "background": "#000000",
+          "borderRadius": "16px",
+          "glow": "0 0 30px rgba(158, 255, 0, 0.2)"
+        },
+        "brandElement": {
+          "background": "#9EFF00",
+          "text": "#000000",
+          "borderRadius": "4px"
+        }
+      },
+      "statistics": {
+        "container": {
+          "background": "rgba(26, 26, 26, 0.8)",
+          "border": "1px solid rgba(158, 255, 0, 0.2)",
+          "borderRadius": "20px",
+          "padding": "40px",
+          "backdrop": "blur(15px)"
+        },
+        "number": {
+          "text": "#9EFF00",
+          "fontSize": "3rem",
+          "fontWeight": "700"
+        },
+        "label": {
+          "text": "#FFFFFF",
+          "fontSize": "1.1rem",
+          "fontWeight": "500"
+        },
+        "globe": {
+          "background": "radial-gradient(circle, rgba(158, 255, 0, 0.3) 0%, rgba(158, 255, 0, 0.1) 50%, transparent 100%)",
+          "glow": "0 0 100px rgba(158, 255, 0, 0.3)"
+        }
+      },
+      "teamCards": {
+        "background": "rgba(26, 26, 26, 0.9)",
+        "border": "1px solid rgba(255, 255, 255, 0.1)",
+        "borderRadius": "16px",
+        "padding": "20px",
+        "hover": {
+          "border": "1px solid rgba(158, 255, 0, 0.3)",
+          "background": "rgba(26, 26, 26, 1)"
+        },
+        "image": {
+          "borderRadius": "12px",
+          "aspectRatio": "1/1",
+          "objectFit": "cover"
+        },
+        "name": {
+          "text": "#FFFFFF",
+          "fontSize": "1.1rem",
+          "fontWeight": "600"
+        },
+        "role": {
+          "text": "#9EFF00",
+          "fontSize": "0.9rem",
+          "fontWeight": "500"
+        }
+      },
+      "pricingCards": {
+        "background": "rgba(26, 26, 26, 0.9)",
+        "border": "1px solid rgba(255, 255, 255, 0.1)",
+        "borderRadius": "16px",
+        "padding": "32px",
+        "featured": {
+          "border": "1px solid #9EFF00",
+          "background": "rgba(158, 255, 0, 0.05)"
+        },
+        "price": {
+          "text": "#FFFFFF",
+          "fontSize": "2.5rem",
+          "fontWeight": "700"
+        },
+        "currency": {
+          "text": "#9EFF00",
+          "fontSize": "1.5rem",
+          "fontWeight": "600"
+        },
+        "features": {
+          "text": "#B0B0B0",
+          "checkmark": "#9EFF00"
+        }
+      },
+      "footer": {
+        "background": "rgba(10, 10, 10, 0.95)",
+        "border": "1px solid rgba(158, 255, 0, 0.1)",
+        "padding": "60px 0 40px",
+        "links": {
+          "text": "#B0B0B0",
+          "hover": {
+            "text": "#9EFF00"
+          }
+        },
+        "newsletter": {
+          "input": {
+            "background": "rgba(26, 26, 26, 0.8)",
+            "border": "1px solid rgba(255, 255, 255, 0.1)",
+            "text": "#FFFFFF",
+            "placeholder": "#808080",
+            "borderRadius": "8px",
+            "padding": "12px 16px"
+          },
+          "button": {
+            "background": "#9EFF00",
+            "text": "#000000",
+            "borderRadius": "8px",
+            "padding": "12px 24px",
+            "fontWeight": "600"
+          }
+        }
+      }
+    },
+    "animations": {
+      "hover": {
+        "duration": "0.3s",
+        "easing": "cubic-bezier(0.4, 0, 0.2, 1)"
+      },
+      "cardHover": {
+        "transform": "translateY(-4px)",
+        "duration": "0.3s"
+      },
+      "buttonHover": {
+        "transform": "translateY(-2px)",
+        "duration": "0.2s"
+      },
+      "glow": {
+        "animation": "pulse 2s infinite",
+        "opacity": "0.6 to 1"
+      }
+    },
+    "doNotRules": {
+      "gradients": [
+        "DO NOT apply card gradients to icons or buttons",
+        "DO NOT use primary brand color gradients on text elements",
+        "DO NOT apply glow effects to text content"
+      ],
+      "colors": [
+        "DO NOT use #9EFF00 as background for large areas",
+        "DO NOT apply card background colors to button elements",
+        "DO NOT use white text on light backgrounds"
+      ],
+      "effects": [
+        "DO NOT apply shadows to text elements",
+        "DO NOT use backdrop blur on small elements",
+        "DO NOT apply hover transforms to static content"
+      ]
+    }
+  }
+}

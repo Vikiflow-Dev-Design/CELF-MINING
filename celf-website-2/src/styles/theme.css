@@ -1,0 +1,147 @@
+/**
+ * CELF Design System - CSS Custom Properties
+ * Based on design-system.json
+ */
+
+:root {
+  /* Brand Colors */
+  --color-brand-primary: #9EFF00;
+  --color-brand-primary-dark: #7ACC00;
+  --color-brand-accent: #00FF94;
+
+  /* Background Colors */
+  --color-bg-primary: #0A0A0A;
+  --color-bg-secondary: #1A1A1A;
+  --color-bg-card: rgba(26, 26, 26, 0.8);
+  --color-bg-card-hover: rgba(26, 26, 26, 1);
+  --color-bg-nav: rgba(10, 10, 10, 0.95);
+
+  /* Text Colors */
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #B0B0B0;
+  --color-text-muted: #808080;
+  --color-text-accent: #9EFF00;
+
+  /* Border Colors */
+  --color-border-default: rgba(255, 255, 255, 0.1);
+  --color-border-accent: rgba(158, 255, 0, 0.1);
+  --color-border-accent-hover: rgba(158, 255, 0, 0.3);
+  --color-border-featured: #9EFF00;
+
+  /* Gradients */
+  --gradient-primary-glow: radial-gradient(circle, rgba(158, 255, 0, 0.3) 0%, rgba(158, 255, 0, 0) 70%);
+  --gradient-card-glow: radial-gradient(circle at center, rgba(158, 255, 0, 0.1) 0%, transparent 50%);
+  --gradient-hero-bg: radial-gradient(ellipse at center, rgba(158, 255, 0, 0.05) 0%, transparent 70%);
+  --gradient-device: linear-gradient(145deg, #2A2A2A 0%, #1A1A1A 100%);
+  --gradient-globe-glow: radial-gradient(circle, rgba(158, 255, 0, 0.3) 0%, rgba(158, 255, 0, 0.1) 50%, transparent 100%);
+
+  /* Shadows */
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 12px 48px rgba(0, 0, 0, 0.4);
+  --shadow-device: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(158, 255, 0, 0.2);
+  --shadow-globe-glow: 0 0 100px rgba(158, 255, 0, 0.3);
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Spacing */
+  --spacing-card: 24px;
+  --spacing-card-lg: 32px;
+  --spacing-icon: 12px;
+
+  /* Typography */
+  --font-size-hero: clamp(2.5rem, 8vw, 6rem);
+  --font-size-card-title: 1.5rem;
+  --font-size-card-desc: 1rem;
+  --font-size-stat: 3rem;
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.1;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  /* Animations */
+  --duration-fast: 0.2s;
+  --duration-normal: 0.3s;
+  --duration-slow: 0.5s;
+  
+  --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Backdrop */
+  --backdrop-blur: blur(10px);
+  --backdrop-blur-strong: blur(15px);
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: var(--line-height-normal);
+  margin: 0;
+  padding: 0;
+}
+
+/* Utility Classes */
+.bg-primary { background-color: var(--color-bg-primary); }
+.bg-secondary { background-color: var(--color-bg-secondary); }
+.bg-card { background-color: var(--color-bg-card); }
+
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted { color: var(--color-text-muted); }
+.text-accent { color: var(--color-text-accent); }
+
+.border-default { border: 1px solid var(--color-border-default); }
+.border-accent { border: 1px solid var(--color-border-accent); }
+
+.radius-sm { border-radius: var(--radius-sm); }
+.radius-md { border-radius: var(--radius-md); }
+.radius-lg { border-radius: var(--radius-lg); }
+.radius-xl { border-radius: var(--radius-xl); }
+
+.shadow-card { box-shadow: var(--shadow-card); }
+.shadow-glow { box-shadow: var(--shadow-glow); }
+
+.backdrop-blur { backdrop-filter: var(--backdrop-blur); }
+
+/* Animation Classes */
+.transition-default {
+  transition: all var(--duration-normal) var(--easing-default);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+}
+
+.hover-lift-sm:hover {
+  transform: translateY(-2px);
+}
+
+/* Glow Animation */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.animate-glow {
+  animation: pulse-glow 2s infinite;
+}
