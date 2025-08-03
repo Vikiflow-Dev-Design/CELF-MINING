@@ -27,10 +27,10 @@ const communityStats = [
   },
   {
     icon: Globe,
-    number: "25+",
+    number: "5+",
     label: "Countries",
-    description: "Global reach across all continents",
-    growth: "+3 new countries",
+    description: "Initial markets with research completed",
+    growth: "Expanding reach",
     color: "from-blue-500/20 to-blue-500/5"
   },
   {
@@ -43,10 +43,10 @@ const communityStats = [
   },
   {
     icon: Award,
-    number: "150+",
-    label: "Success Stories",
-    description: "Students who received scholarships",
-    growth: "+12 this quarter",
+    number: "25+",
+    label: "Pilot Recipients",
+    description: "Early scholarship recipients in foundation phase",
+    growth: "Foundation program",
     color: "from-yellow-500/20 to-yellow-500/5"
   },
   {
@@ -95,11 +95,11 @@ const engagementMetrics = [
 ];
 
 const regionalBreakdown = [
-  { region: "North America", percentage: 35, members: "875+" },
-  { region: "Europe", percentage: 28, members: "700+" },
-  { region: "Asia Pacific", percentage: 22, members: "550+" },
-  { region: "Latin America", percentage: 10, members: "250+" },
-  { region: "Africa & Middle East", percentage: 5, members: "125+" }
+  { region: "North America", percentage: 40, members: "200+" },
+  { region: "Europe", percentage: 25, members: "125+" },
+  { region: "Asia Pacific", percentage: 20, members: "100+" },
+  { region: "Latin America", percentage: 10, members: "50+" },
+  { region: "Africa & Middle East", percentage: 5, members: "25+" }
 ];
 
 export function CommunityStatsSection() {

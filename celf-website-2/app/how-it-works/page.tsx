@@ -19,7 +19,7 @@ export default function HowItWorksPage() {
         <ScrollingTextSection />
         <SystemOverviewSection />
         <MiningProcessSection />
-        <TokenEconomySection />
+        {/* <TokenEconomySection /> */}
         <ScholarshipJourneySection />
         <TechnologySection />
         <FAQSection />

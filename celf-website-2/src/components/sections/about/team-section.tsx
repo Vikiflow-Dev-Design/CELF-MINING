@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/src/components/ui/card";
 import { 
@@ -24,7 +25,9 @@ const teamMembers = [
     bio: "Visionary leader with 15+ years in education technology. PhD in Educational Psychology from Stanford University.",
     expertise: ["Education Technology", "Strategic Leadership", "Student Psychology"],
     icon: Award,
-    image: "/api/placeholder/120/120"
+    image: "https://ui-avatars.com/api/?name=Sarah+Chen&background=9EFF00&color=000000&size=400&format=png",
+    linkedin: "https://linkedin.com/in/sarahchen",
+    email: "sarah@celf.org"
   },
   {
     name: "Michael Rodriguez",
@@ -33,7 +36,9 @@ const teamMembers = [
     bio: "Blockchain expert and former senior engineer at major tech companies. Leading our technical innovation.",
     expertise: ["Blockchain Development", "Mobile Applications", "System Architecture"],
     icon: Code,
-    image: "/api/placeholder/120/120"
+    image: "https://ui-avatars.com/api/?name=Michael+Rodriguez&background=9EFF00&color=000000&size=400&format=png",
+    linkedin: "https://linkedin.com/in/michaelrodriguez",
+    email: "michael@celf.org"
   },
   {
     name: "Dr. Amara Okafor",
@@ -42,7 +47,9 @@ const teamMembers = [
     bio: "Former university dean with expertise in global education systems and student success programs.",
     expertise: ["Academic Programs", "Student Success", "Global Education"],
     icon: BookOpen,
-    image: "/api/placeholder/120/120"
+    image: "https://ui-avatars.com/api/?name=Amara+Okafor&background=9EFF00&color=000000&size=400&format=png",
+    linkedin: "https://linkedin.com/in/amaraokafor",
+    email: "amara@celf.org"
   },
   {
     name: "James Thompson",
@@ -51,7 +58,9 @@ const teamMembers = [
     bio: "Community building specialist focused on creating supportive environments for student success.",
     expertise: ["Community Building", "Student Mentorship", "Program Development"],
     icon: Heart,
-    image: "/api/placeholder/120/120"
+    image: "https://ui-avatars.com/api/?name=James+Thompson&background=9EFF00&color=000000&size=400&format=png",
+    linkedin: "https://linkedin.com/in/jamesthompson",
+    email: "james@celf.org"
   },
   {
     name: "Lisa Wang",
@@ -60,7 +69,9 @@ const teamMembers = [
     bio: "International relations expert managing partnerships with educational institutions worldwide.",
     expertise: ["International Relations", "Partnership Development", "Cultural Adaptation"],
     icon: Globe,
-    image: "/api/placeholder/120/120"
+    image: "https://ui-avatars.com/api/?name=Lisa+Wang&background=9EFF00&color=000000&size=400&format=png",
+    linkedin: "https://linkedin.com/in/lisawang",
+    email: "lisa@celf.org"
   },
   {
     name: "David Kim",
@@ -69,7 +80,9 @@ const teamMembers = [
     bio: "Cybersecurity specialist ensuring the safety and compliance of our blockchain systems.",
     expertise: ["Cybersecurity", "Compliance", "Risk Management"],
     icon: Shield,
-    image: "/api/placeholder/120/120"
+    image: "https://ui-avatars.com/api/?name=David+Kim&background=9EFF00&color=000000&size=400&format=png",
+    linkedin: "https://linkedin.com/in/davidkim",
+    email: "david@celf.org"
   }
 ];
 
@@ -176,7 +189,7 @@ export function TeamSection() {
           ))}
         </motion.div>
 
-        {/* Team Members */}
+        {/* Enhanced Team Members with Flip Animation */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {teamMembers.map((member, index) => (
             <motion.div
@@ -185,49 +198,89 @@ export function TeamSection() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
               viewport={{ once: true }}
+              className="group perspective-1000"
             >
-              <Card className="h-full group cursor-pointer border-[#9EFF00]/20 hover:border-[#9EFF00]/40 transition-colors duration-300">
-                <CardContent className="p-6">
-                  <div className="text-center mb-6">
-                    {/* Profile Image Placeholder */}
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#9EFF00]/20 to-[#9EFF00]/5 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(158,255,0,0.1)]">
-                      <member.icon className="h-10 w-10 text-[#9EFF00]" />
+              {/* Flip Card Container */}
+              <div className="relative w-full h-[500px] preserve-3d group-hover:rotate-y-180 transition-transform duration-700 cursor-pointer">
+
+                {/* Front Side - Image */}
+                <div className="absolute inset-0 w-full h-full backface-hidden">
+                  <div className="h-full border-[#9EFF00]/20 hover:border-[#9EFF00]/40 transition-colors duration-300 overflow-hidden rounded-lg relative">
+                    {/* Team Member Image - Full Coverage */}
+                    <Image
+                      src={member.image}
+                      alt={member.name}
+                      fill
+                      className="object-cover"
+                    />
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                    {/* Name and Role Overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                      <h3 className="text-xl font-bold mb-1">{member.name}</h3>
+                      <p className="text-[#9EFF00] text-sm font-medium">{member.role}</p>
+                      <p className="text-gray-300 text-xs">{member.department}</p>
                     </div>
-                    
-                    <h3 className="text-lg font-semibold text-white mb-1 group-hover:text-[#9EFF00] transition-colors duration-300">
-                      {member.name}
-                    </h3>
-                    <p className="text-[#9EFF00] text-sm font-medium mb-1">{member.role}</p>
-                    <p className="text-gray-400 text-xs">{member.department}</p>
-                  </div>
 
-                  <p className="text-gray-300 text-sm leading-relaxed mb-4">
-                    {member.bio}
-                  </p>
-
-                  {/* Expertise */}
-                  <div className="mb-4">
-                    <h4 className="text-xs font-medium text-white mb-2">Expertise:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {member.expertise.map((skill, idx) => (
-                        <span key={idx} className="text-xs bg-gray-800/50 text-gray-300 px-2 py-1 rounded-full">
-                          {skill}
-                        </span>
-                      ))}
+                    {/* Hover Indicator */}
+                    <div className="absolute top-4 right-4 w-8 h-8 bg-[#9EFF00]/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-[#9EFF00]/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <Users className="h-4 w-4 text-[#9EFF00]" />
                     </div>
                   </div>
+                </div>
 
-                  {/* Contact Icons */}
-                  <div className="flex justify-center space-x-3 pt-4 border-t border-gray-700/50">
-                    <button className="w-8 h-8 bg-gray-800/50 rounded-lg flex items-center justify-center hover:bg-[#9EFF00]/20 transition-colors duration-200">
-                      <Mail className="h-4 w-4 text-gray-400 hover:text-[#9EFF00]" />
-                    </button>
-                    <button className="w-8 h-8 bg-gray-800/50 rounded-lg flex items-center justify-center hover:bg-[#9EFF00]/20 transition-colors duration-200">
-                      <Linkedin className="h-4 w-4 text-gray-400 hover:text-[#9EFF00]" />
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Back Side - Details */}
+                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180">
+                  <Card className="h-full border-[#9EFF00]/40 bg-gradient-to-br from-gray-900/95 to-gray-800/95 backdrop-blur-sm">
+                    <CardContent className="p-6 h-full flex flex-col">
+                      {/* Header */}
+                      <div className="text-center mb-6">
+                        <div className="w-16 h-16 bg-gradient-to-br from-[#9EFF00]/30 to-[#9EFF00]/10 rounded-full flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(158,255,0,0.3)]">
+                          <member.icon className="h-8 w-8 text-[#9EFF00]" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white mb-1">{member.name}</h3>
+                        <p className="text-[#9EFF00] text-sm font-medium">{member.role}</p>
+                      </div>
+
+                      {/* Bio */}
+                      <p className="text-gray-300 text-sm leading-relaxed mb-4 flex-1">
+                        {member.bio}
+                      </p>
+
+                      {/* Expertise */}
+                      <div className="mb-6">
+                        <h4 className="text-xs font-medium text-white mb-3">Expertise:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {member.expertise.map((skill, idx) => (
+                            <span key={idx} className="text-xs bg-[#9EFF00]/10 text-[#9EFF00] px-3 py-1 rounded-full border border-[#9EFF00]/20">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Contact Links */}
+                      <div className="flex justify-center space-x-4 pt-4 border-t border-gray-700/50">
+                        <a
+                          href={`mailto:${member.email}`}
+                          className="w-10 h-10 bg-gray-800/50 rounded-lg flex items-center justify-center hover:bg-[#9EFF00]/20 transition-colors duration-200 group/btn"
+                        >
+                          <Mail className="h-5 w-5 text-gray-400 group-hover/btn:text-[#9EFF00]" />
+                        </a>
+                        <a
+                          href={member.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-10 h-10 bg-gray-800/50 rounded-lg flex items-center justify-center hover:bg-[#9EFF00]/20 transition-colors duration-200 group/btn"
+                        >
+                          <Linkedin className="h-5 w-5 text-gray-400 group-hover/btn:text-[#9EFF00]" />
+                        </a>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </motion.div>
           ))}
         </div>

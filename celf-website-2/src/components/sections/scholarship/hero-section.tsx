@@ -42,21 +42,7 @@ export function ScholarshipHero() {
           className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-gradient-radial from-[#9EFF00]/25 to-transparent rounded-full blur-3xl"
         />
         
-        {/* Floating scholarship icons */}
-        <motion.div
-          animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
-          transition={{ duration: 6, repeat: Infinity }}
-          className="absolute top-1/3 right-1/3 w-8 h-8 text-[#9EFF00]/30"
-        >
-          <GraduationCap className="w-full h-full" />
-        </motion.div>
-        <motion.div
-          animate={{ y: [0, 15, 0], rotate: [0, -5, 0] }}
-          transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-          className="absolute bottom-1/3 left-1/3 w-6 h-6 text-[#9EFF00]/40"
-        >
-          <Award className="w-full h-full" />
-        </motion.div>
+
       </div>
 
       <div className="relative z-10 container mx-auto px-4 lg:px-8 text-center">

@@ -56,47 +56,47 @@ const timelineEvents = [
   {
     year: "2020",
     quarter: "Q2",
-    title: "Global Expansion",
-    description: "Reached 15 countries and adapted our programs to serve diverse educational systems and cultural contexts.",
+    title: "Early Startup Phase",
+    description: "CELF was in its early startup phase, building the foundational team and exploring innovative solutions for education funding challenges.",
     icon: Globe,
-    achievements: ["15 countries reached", "Localized programs", "Cultural adaptation completed"],
-    impact: "Global presence"
+    achievements: ["Core team formation", "Initial concept development", "Market opportunity research"],
+    impact: "Startup foundation"
   },
   {
     year: "2021",
     quarter: "Q4",
-    title: "Digital Transformation",
-    description: "Launched digital platforms and began exploring blockchain technology for transparent scholarship distribution.",
+    title: "Pre-Launch Development",
+    description: "Intensive development phase preparing for the launch of our website and mobile application with innovative blockchain concepts.",
     icon: Smartphone,
-    achievements: ["Digital platform launched", "Blockchain research initiated", "Online community tools deployed"],
-    impact: "Technology adoption"
+    achievements: ["Website development in progress", "App architecture designed", "Blockchain research initiated"],
+    impact: "Pre-launch preparation"
   },
   {
     year: "2022",
     quarter: "Q1",
-    title: "Blockchain Innovation",
-    description: "Introduced revolutionary token mining system, replacing traditional exams with merit-based token accumulation.",
+    title: "Concept Refinement",
+    description: "Refined our revolutionary token mining concept while continuing development without any blockchain implementation yet.",
     icon: Zap,
-    achievements: ["Token system launched", "Mobile app released", "Mining mechanism deployed"],
-    impact: "Innovation breakthrough"
+    achievements: ["Mining concept refined", "Technical specifications improved", "Development roadmap updated"],
+    impact: "Concept maturation"
   },
   {
     year: "2023",
     quarter: "Q3",
-    title: "Scaling Success",
-    description: "Reached 2,000+ active miners and awarded 100+ scholarships through the new blockchain-based system.",
+    title: "Pre-Mining Development",
+    description: "Continued platform development and preparation phases before launching any mining operations or token systems.",
     icon: TrendingUp,
-    achievements: ["2,000+ active miners", "100+ blockchain scholarships", "System optimization completed"],
-    impact: "Scale achieved"
+    achievements: ["Platform development continued", "System testing planned", "Launch strategy refined"],
+    impact: "Development progress"
   },
   {
     year: "2024",
     quarter: "Q1",
-    title: "Milestone Achievement",
-    description: "Celebrated 150+ total scholarships awarded and 2,500+ students in our global community across 25+ countries.",
+    title: "Launch Preparation",
+    description: "Final preparations for launching our innovative platform, with website and app development nearing completion.",
     icon: Target,
-    achievements: ["150+ total scholarships", "2,500+ community members", "25+ countries served"],
-    impact: "Major milestone"
+    achievements: ["Final development phase", "Launch preparations underway", "Community building initiated"],
+    impact: "Launch readiness"
   }
 ];
 
@@ -243,18 +243,18 @@ export function TimelineSection() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="text-3xl font-bold text-[#9EFF00] mb-2">2025</div>
-                <div className="text-white font-medium mb-1">Next Milestone</div>
-                <div className="text-gray-400 text-sm">5,000+ community members</div>
+                <div className="text-white font-medium mb-1">Official Launch</div>
+                <div className="text-gray-400 text-sm">Website & app go live</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-[#9EFF00] mb-2">2026</div>
-                <div className="text-white font-medium mb-1">Global Expansion</div>
-                <div className="text-gray-400 text-sm">50+ countries reached</div>
+                <div className="text-white font-medium mb-1">Mining Launch</div>
+                <div className="text-gray-400 text-sm">Token mining begins</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-[#9EFF00] mb-2">2027</div>
-                <div className="text-white font-medium mb-1">Innovation Goals</div>
-                <div className="text-gray-400 text-sm">Next-gen platform launch</div>
+                <div className="text-white font-medium mb-1">First Scholarships</div>
+                <div className="text-gray-400 text-sm">Scholarship program starts</div>
               </div>
             </div>
           </div>

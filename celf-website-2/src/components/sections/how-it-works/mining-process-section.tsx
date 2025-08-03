@@ -5,12 +5,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardTitle } from "@/src/components/ui/card";
-import { 
-  Smartphone, 
-  Play, 
-  Clock, 
-  Coins, 
-  TrendingUp,
+import {
+  Smartphone,
+  Play,
+  Clock,
+  Coins,
   ArrowRight,
   Zap,
   Target,
@@ -80,28 +79,7 @@ const miningFeatures = [
   }
 ];
 
-const miningTips = [
-  {
-    title: "Consistency is Key",
-    description: "Regular daily mining sessions help you accumulate tokens faster and show commitment to the community.",
-    icon: Calendar
-  },
-  {
-    title: "Join Community Activities",
-    description: "Participate in community discussions and events to enhance your scholarship application.",
-    icon: CheckCircle
-  },
-  {
-    title: "Track Your Progress",
-    description: "Monitor your token balance and mining history to plan your scholarship timeline.",
-    icon: TrendingUp
-  },
-  {
-    title: "Stay Engaged",
-    description: "Active community members often receive priority consideration for scholarships.",
-    icon: Target
-  }
-];
+
 
 const miningStats = [
   {
@@ -334,44 +312,7 @@ export function MiningProcessSection() {
           </motion.div>
         </div>
 
-        {/* Mining Tips */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-          className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 border border-[#9EFF00]/30 rounded-2xl p-8 lg:p-12 backdrop-blur-sm shadow-[0_20px_60px_rgba(158,255,0,0.1)]"
-        >
-          <div className="text-center mb-12">
-            <h3 className="text-3xl lg:text-4xl font-bold text-white mb-4">
-              Mining Success Tips
-            </h3>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-              Maximize your mining effectiveness and scholarship chances with these proven strategies from successful CELF students.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {miningTips.map((tip, index) => (
-              <motion.div
-                key={tip.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="flex items-start space-x-4"
-              >
-                <div className="w-10 h-10 bg-gradient-to-br from-[#9EFF00]/20 to-[#9EFF00]/5 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <tip.icon className="h-5 w-5 text-[#9EFF00]" />
-                </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">{tip.title}</h4>
-                  <p className="text-gray-300 leading-relaxed">{tip.description}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </section>
   );

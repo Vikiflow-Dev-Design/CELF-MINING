@@ -23,75 +23,75 @@ import {
 const impactMetrics = [
   {
     icon: DollarSign,
-    number: "$2.5M+",
-    label: "Total Scholarships",
-    description: "Distributed to students worldwide",
-    growth: "+45% this year"
+    number: "$50K+",
+    label: "Early Scholarships",
+    description: "Awarded in our pilot program",
+    growth: "Foundation phase"
   },
   {
     icon: Users,
-    number: "2,500+",
-    label: "Students Supported",
-    description: "Active community members globally",
-    growth: "+60% this year"
+    number: "500+",
+    label: "Community Members",
+    description: "Early supporters and beta testers",
+    growth: "Growing daily"
   },
   {
     icon: Globe,
-    number: "25+",
-    label: "Countries Reached",
-    description: "Global presence and impact",
-    growth: "+8 new countries"
+    number: "5+",
+    label: "Countries Interested",
+    description: "Initial market research completed",
+    growth: "Expanding reach"
   },
   {
     icon: Award,
-    number: "150+",
-    label: "Scholarships Awarded",
-    description: "Lives transformed through education",
-    growth: "+50 this year"
+    number: "25+",
+    label: "Pilot Scholarships",
+    description: "Early program beneficiaries",
+    growth: "Proof of concept"
   },
   {
     icon: GraduationCap,
-    number: "95%",
-    label: "Success Rate",
-    description: "Students completing their education",
-    growth: "Consistent excellence"
+    number: "8+",
+    label: "Years of Development",
+    description: "Research and innovation phase",
+    growth: "Continuous improvement"
   },
   {
     icon: Star,
-    number: "4.9/5",
-    label: "Community Rating",
-    description: "Student satisfaction score",
-    growth: "Highest rated program"
+    number: "2025",
+    label: "Launch Year",
+    description: "Platform goes live",
+    growth: "Coming soon"
   }
 ];
 
 const impactStories = [
   {
-    category: "Educational Access",
-    title: "Breaking Down Barriers",
-    description: "We've eliminated geographical and economic barriers that traditionally prevented talented students from accessing quality education.",
-    achievements: ["No location restrictions", "Merit-based selection", "Fair token distribution", "Global accessibility"],
-    icon: Globe
-  },
-  {
-    category: "Technology Innovation",
+    category: "Innovation Development",
     title: "Pioneering Blockchain Education",
-    description: "First foundation to successfully implement blockchain technology for transparent and fair scholarship distribution.",
-    achievements: ["Blockchain transparency", "Smart contract automation", "Immutable records", "Decentralized verification"],
+    description: "Developing revolutionary blockchain technology to create transparent and fair scholarship distribution systems.",
+    achievements: ["Blockchain research", "Smart contract design", "System architecture", "Security protocols"],
     icon: Zap
   },
   {
     category: "Community Building",
-    title: "Creating Support Networks",
-    description: "Built a global community where students mentor each other and share knowledge across cultural boundaries.",
-    achievements: ["Peer mentorship programs", "Cross-cultural exchange", "Knowledge sharing", "Lifelong connections"],
+    title: "Growing Our Network",
+    description: "Building a community of early supporters, beta testers, and education advocates who believe in our mission.",
+    achievements: ["Early community", "Beta testing program", "Feedback integration", "Ambassador network"],
     icon: Heart
   },
   {
-    category: "Student Success",
-    title: "Transforming Lives",
-    description: "Our graduates go on to become leaders in their fields, creating positive change in their communities.",
-    achievements: ["95% graduation rate", "Career advancement", "Community leadership", "Continued giving back"],
+    category: "Educational Research",
+    title: "Understanding Student Needs",
+    description: "Conducting extensive research to understand barriers to education funding and developing solutions.",
+    achievements: ["Market research", "Student surveys", "Needs analysis", "Solution design"],
+    icon: Globe
+  },
+  {
+    category: "Platform Development",
+    title: "Building the Future",
+    description: "Creating innovative mobile and web platforms that will revolutionize how students access education funding.",
+    achievements: ["Platform design", "User experience", "Mobile development", "Testing phases"],
     icon: Target
   }
 ];
@@ -99,23 +99,23 @@ const impactStories = [
 const futureGoals = [
   {
     year: "2025",
-    goal: "5,000+ Active Students",
-    description: "Double our community size and reach more students in need"
+    goal: "Platform Launch",
+    description: "Official launch of our website and mobile application"
   },
   {
     year: "2026",
-    goal: "50+ Countries",
-    description: "Expand to new regions and establish local partnerships"
+    goal: "1,000+ Active Users",
+    description: "Build our first community of active token miners"
   },
   {
     year: "2027",
-    goal: "$10M+ Distributed",
-    description: "Quadruple our scholarship distribution capacity"
+    goal: "First Scholarships",
+    description: "Award our first blockchain-based scholarships"
   },
   {
     year: "2028",
-    goal: "Next-Gen Platform",
-    description: "Launch advanced AI-powered student support systems"
+    goal: "Global Expansion",
+    description: "Expand to 10+ countries with local partnerships"
   }
 ];
 
@@ -157,8 +157,8 @@ export function ImpactSection() {
             <span className="text-[#9EFF00]">Impact</span>
           </h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-            Since 2016, CELF has been transforming lives through education. See the real-world 
-            impact we've created and our vision for the future.
+            Since 2016, CELF has been developing innovative solutions for education funding. See our
+            development progress and vision for transforming student access to education.
           </p>
         </motion.div>
 
@@ -304,8 +304,8 @@ export function ImpactSection() {
               </h3>
               
               <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-                Join thousands of students who are already transforming their lives through CELF. 
-                Your journey toward educational success starts with a single step.
+                Be among the first to experience our revolutionary blockchain-based education funding platform.
+                Join our community and prepare for the future of educational opportunities.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
@@ -322,7 +322,7 @@ export function ImpactSection() {
 
               <div className="text-center text-gray-400 text-sm">
                 <Heart className="h-4 w-4 inline mr-1" />
-                Join 2,500+ students already building their future with CELF
+                Join 500+ early supporters preparing for our 2025 launch
               </div>
             </CardContent>
           </Card>

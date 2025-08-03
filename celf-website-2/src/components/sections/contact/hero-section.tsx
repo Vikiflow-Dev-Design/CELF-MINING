@@ -42,28 +42,7 @@ export function ContactHero() {
           className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-gradient-radial from-[#9EFF00]/25 to-transparent rounded-full blur-3xl"
         />
         
-        {/* Floating contact icons */}
-        <motion.div
-          animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
-          transition={{ duration: 6, repeat: Infinity }}
-          className="absolute top-1/3 left-1/3 w-8 h-8 text-[#9EFF00]/30"
-        >
-          <MessageCircle className="w-full h-full" />
-        </motion.div>
-        <motion.div
-          animate={{ y: [0, 15, 0], rotate: [0, -5, 0] }}
-          transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-          className="absolute bottom-1/3 right-1/3 w-6 h-6 text-[#9EFF00]/40"
-        >
-          <Mail className="w-full h-full" />
-        </motion.div>
-        <motion.div
-          animate={{ y: [0, -10, 0], rotate: [0, 3, 0] }}
-          transition={{ duration: 5, repeat: Infinity, delay: 2 }}
-          className="absolute top-1/2 right-1/5 w-7 h-7 text-[#9EFF00]/35"
-        >
-          <Phone className="w-full h-full" />
-        </motion.div>
+
       </div>
 
       <div className="relative z-10 container mx-auto px-4 lg:px-8 text-center">

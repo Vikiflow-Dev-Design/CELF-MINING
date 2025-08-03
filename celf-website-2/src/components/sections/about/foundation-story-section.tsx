@@ -32,18 +32,18 @@ const storyMilestones = [
     highlight: "First Impact"
   },
   {
-    year: "2020",
-    title: "Global Expansion",
-    description: "Expanded our reach to 15 countries, establishing partnerships with educational institutions and local communities worldwide.",
-    icon: Globe,
-    highlight: "Going Global"
+    year: "2020-2023",
+    title: "Innovation Development",
+    description: "Spent years researching and developing our revolutionary blockchain-based token mining system as an alternative to traditional scholarship exams.",
+    icon: Lightbulb,
+    highlight: "R&D Phase"
   },
   {
-    year: "2022",
-    title: "Blockchain Innovation",
-    description: "Introduced revolutionary blockchain-based token mining system, replacing traditional scholarship exams with merit-based token accumulation.",
+    year: "2024-2025",
+    title: "Launch Preparation",
+    description: "Finalizing our innovative platform and preparing for the official launch of our blockchain-based education funding system.",
     icon: Zap,
-    highlight: "Innovation"
+    highlight: "Launch Ready"
   }
 ];
 
@@ -108,8 +108,8 @@ export function FoundationStorySection() {
             <span className="text-[#9EFF00]">CELF Story</span>
           </h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-            From a simple idea to a global movement, discover how CELF has evolved to become 
-            a leading force in democratizing education funding through innovation and community.
+            From a simple idea to an innovative solution, discover how CELF is developing
+            revolutionary blockchain technology to democratize education funding for students worldwide.
           </p>
         </motion.div>
 
@@ -124,32 +124,32 @@ export function FoundationStorySection() {
             viewport={{ once: true }}
           >
             <h3 className="text-3xl lg:text-4xl font-bold text-white mb-8">
-              A Vision Born from Necessity
+              A Revolutionary Vision in Development
             </h3>
 
             <div className="space-y-6 text-gray-300 leading-relaxed">
               <p>
-                In 2016, our founders recognized a fundamental problem in education funding: 
-                talented students were being denied opportunities not because they lacked ability, 
+                In 2016, our founders recognized a fundamental problem in education funding:
+                talented students were being denied opportunities not because they lacked ability,
                 but because they lacked access to traditional scholarship systems.
               </p>
-              
+
               <p>
-                The existing scholarship landscape was riddled with barriers - complex application 
-                processes, biased selection criteria, geographical limitations, and systems that 
+                The existing scholarship landscape was riddled with barriers - complex application
+                processes, biased selection criteria, geographical limitations, and systems that
                 favored those who already had advantages. We knew there had to be a better way.
               </p>
-              
+
               <p>
-                CELF was born from the belief that every student, regardless of their background, 
-                deserves a fair chance at quality education. We set out to create a system that 
-                would be transparent, accessible, and truly merit-based.
+                CELF was born from the belief that every student, regardless of their background,
+                deserves a fair chance at quality education. We set out to create a revolutionary
+                system that would be transparent, accessible, and truly merit-based using blockchain technology.
               </p>
-              
+
               <p>
-                Today, eight years later, we've transformed from a small foundation with big dreams 
-                into a global movement that has supported over 2,500 students across 25+ countries, 
-                proving that innovation and compassion can indeed change the world.
+                Today, after years of careful development and innovation, we're preparing to launch
+                our groundbreaking platform that will transform how students access education funding
+                through our unique token mining system - proving that technology and compassion can change the world.
               </p>
             </div>
 

@@ -42,28 +42,7 @@ export function AboutHero() {
           className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-gradient-radial from-[#9EFF00]/25 to-transparent rounded-full blur-3xl"
         />
         
-        {/* Floating mission icons */}
-        <motion.div
-          animate={{ y: [0, -20, 0], rotate: [0, 5, 0] }}
-          transition={{ duration: 6, repeat: Infinity }}
-          className="absolute top-1/3 left-1/3 w-8 h-8 text-[#9EFF00]/30"
-        >
-          <Heart className="w-full h-full" />
-        </motion.div>
-        <motion.div
-          animate={{ y: [0, 15, 0], rotate: [0, -5, 0] }}
-          transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-          className="absolute bottom-1/3 right-1/3 w-6 h-6 text-[#9EFF00]/40"
-        >
-          <BookOpen className="w-full h-full" />
-        </motion.div>
-        <motion.div
-          animate={{ y: [0, -10, 0], rotate: [0, 3, 0] }}
-          transition={{ duration: 5, repeat: Infinity, delay: 2 }}
-          className="absolute top-1/2 right-1/5 w-7 h-7 text-[#9EFF00]/35"
-        >
-          <Globe className="w-full h-full" />
-        </motion.div>
+
       </div>
 
       <div className="relative z-10 container mx-auto px-4 lg:px-8 text-center">
@@ -103,8 +82,8 @@ export function AboutHero() {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl lg:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto leading-relaxed"
           >
-            The Clarence Education For Life Foundation is dedicated to democratizing access to quality education 
-            through innovative blockchain technology and community-driven scholarship programs.
+            The Clarence Education For Life Foundation is developing revolutionary blockchain technology
+            to democratize access to quality education through innovative community-driven scholarship programs.
           </motion.p>
 
           {/* Key mission points */}
@@ -125,15 +104,15 @@ export function AboutHero() {
               <div className="w-12 h-12 bg-gradient-to-br from-[#9EFF00]/20 to-[#9EFF00]/5 rounded-xl flex items-center justify-center mb-2">
                 <Users className="h-6 w-6 text-[#9EFF00]" />
               </div>
-              <div className="text-2xl font-bold text-[#9EFF00]">2,500+</div>
-              <span className="font-medium text-center">Students Supported</span>
+              <div className="text-2xl font-bold text-[#9EFF00]">500+</div>
+              <span className="font-medium text-center">Community Members</span>
             </div>
             <div className="flex flex-col items-center space-y-3 text-gray-300 bg-gray-900/50 rounded-xl p-6 border border-[#9EFF00]/20">
               <div className="w-12 h-12 bg-gradient-to-br from-[#9EFF00]/20 to-[#9EFF00]/5 rounded-xl flex items-center justify-center mb-2">
                 <Globe className="h-6 w-6 text-[#9EFF00]" />
               </div>
-              <div className="text-2xl font-bold text-[#9EFF00]">25+</div>
-              <span className="font-medium text-center">Countries Reached</span>
+              <div className="text-2xl font-bold text-[#9EFF00]">2025</div>
+              <span className="font-medium text-center">Launch Year</span>
             </div>
           </motion.div>
 

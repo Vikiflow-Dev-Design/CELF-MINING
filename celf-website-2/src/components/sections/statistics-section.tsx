@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/src/components/ui/card";
+import WorldMap from "@/src/components/ui/world-map";
 
 interface StatisticProps {
   number: string;
@@ -68,40 +69,40 @@ function Statistic({ number, label, description, delay = 0 }: StatisticProps) {
 
 const statistics = [
   {
-    number: "2500+",
-    label: "Active Miners",
+    number: "500+",
+    label: "Community Members",
     description:
-      "Students actively mining CELF tokens and building their educational future",
-  },
-  {
-    number: "150+",
-    label: "Scholarships Awarded",
-    description:
-      "Educational scholarships distributed to deserving students worldwide",
+      "Early supporters and beta testers preparing for our platform launch",
   },
   {
     number: "25+",
-    label: "Countries Reached",
+    label: "Pilot Scholarships",
     description:
-      "Global presence spanning across multiple continents and cultures",
+      "Early scholarships awarded during our foundation phase",
+  },
+  {
+    number: "5+",
+    label: "Countries Interested",
+    description:
+      "Initial markets where we've conducted research and built interest",
   },
   {
     number: "8",
-    label: "Years of Impact",
+    label: "Years of Development",
     description:
-      "Since 2016, transforming lives through educational opportunities",
+      "Since 2016, researching and developing innovative education solutions",
   },
   {
-    number: "95%",
-    label: "Success Rate",
+    number: "2025",
+    label: "Launch Year",
     description:
-      "Of scholarship recipients successfully completing their educational goals",
+      "When our revolutionary blockchain platform will go live",
   },
   {
-    number: "1M+",
-    label: "CELF Tokens Mined",
+    number: "100%",
+    label: "Innovation Focus",
     description:
-      "Total tokens mined by our global community of dedicated students",
+      "Dedicated to creating the most advanced education funding platform",
   },
 ];
 
@@ -134,12 +135,12 @@ export function StatisticsSection() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
-            Trusted by{" "}
-            <span className="text-[#9EFF00]">Millions Worldwide</span>
+            Building the{" "}
+            <span className="text-[#9EFF00]">Future of Education</span>
           </h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-            Our impact speaks for itself. Join a global community that's
-            revolutionizing education funding through innovative blockchain
+            Our development progress speaks for itself. Join our growing community
+            as we prepare to revolutionize education funding through innovative blockchain
             technology.
           </p>
         </motion.div>
@@ -157,54 +158,110 @@ export function StatisticsSection() {
           ))}
         </div>
 
-        {/* Globe visualization */}
+        {/* Enhanced World Map Visualization */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1 }}
+          initial={{ opacity: 0, y: 50 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.3 }}
           viewport={{ once: true }}
-          className="text-center"
+          className="mt-16"
         >
-          <div className="relative max-w-md mx-auto">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-              className="w-64 h-64 mx-auto relative"
-            >
-              <div className="absolute inset-0 bg-gradient-radial from-[#9EFF00]/20 to-transparent rounded-full shadow-[0_0_100px_rgba(158,255,0,0.3)]" />
-              <div className="absolute inset-4 bg-gray-900/80 rounded-full border border-[#9EFF00]/30 backdrop-blur-sm" />
+          <div className="relative max-w-7xl mx-auto">
+            {/* Modern container with enhanced styling */}
+            <div className="relative bg-gradient-to-br from-gray-900/80 via-gray-800/60 to-gray-900/80 rounded-3xl p-8 lg:p-12 border border-[#9EFF00]/30 backdrop-blur-xl shadow-[0_0_80px_rgba(158,255,0,0.15)]">
+              {/* Decorative elements */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#9EFF00]/5 via-transparent to-[#9EFF00]/5 rounded-3xl" />
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-[#9EFF00] to-transparent rounded-full" />
 
-              {/* Animated dots representing global users */}
-              {[...Array(8)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-2 h-2 bg-[#9EFF00] rounded-full shadow-[0_0_10px_rgba(158,255,0,0.6)]"
-                  style={{
-                    top: `${20 + Math.sin(i * 0.8) * 30}%`,
-                    left: `${20 + Math.cos(i * 0.8) * 30}%`,
-                  }}
-                  animate={{
-                    scale: [1, 1.5, 1],
-                    opacity: [0.6, 1, 0.6],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    delay: i * 0.3,
-                  }}
+              {/* Section title */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+                viewport={{ once: true }}
+                className="text-center mb-8"
+              >
+                <h3 className="text-2xl lg:text-3xl font-bold text-white mb-4">
+                  Global <span className="text-[#9EFF00]">Network</span>
+                </h3>
+                <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+                  Connecting students worldwide through blockchain education
+                </p>
+              </motion.div>
+
+              {/* Enhanced WorldMap */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 1.2, delay: 0.8 }}
+                viewport={{ once: true }}
+                className="relative"
+              >
+                <WorldMap
+                  dots={[
+                    {
+                      start: { lat: 40.7128, lng: -74.0060, label: "New York" },
+                      end: { lat: 51.5074, lng: -0.1278, label: "London" },
+                    },
+                    {
+                      start: { lat: 35.6762, lng: 139.6503, label: "Tokyo" },
+                      end: { lat: -33.8688, lng: 151.2093, label: "Sydney" },
+                    },
+                    {
+                      start: { lat: 55.7558, lng: 37.6176, label: "Moscow" },
+                      end: { lat: -26.2041, lng: 28.0473, label: "Johannesburg" },
+                    },
+                    {
+                      start: { lat: 19.0760, lng: 72.8777, label: "Mumbai" },
+                      end: { lat: -23.5505, lng: -46.6333, label: "São Paulo" },
+                    },
+                    {
+                      start: { lat: 39.9042, lng: 116.4074, label: "Beijing" },
+                      end: { lat: 52.5200, lng: 13.4050, label: "Berlin" },
+                    },
+                    {
+                      start: { lat: 1.3521, lng: 103.8198, label: "Singapore" },
+                      end: { lat: 25.2048, lng: 55.2708, label: "Dubai" },
+                    },
+                    {
+                      start: { lat: -34.6037, lng: -58.3816, label: "Buenos Aires" },
+                      end: { lat: 37.7749, lng: -122.4194, label: "San Francisco" },
+                    },
+                    {
+                      start: { lat: 30.0444, lng: 31.2357, label: "Cairo" },
+                      end: { lat: 13.7563, lng: 100.5018, label: "Bangkok" },
+                    },
+                  ]}
+                  lineColor="#9EFF00"
                 />
-              ))}
-            </motion.div>
+              </motion.div>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
-              viewport={{ once: true }}
-              className="text-gray-300 mt-6 text-lg font-medium"
-            >
-              Connecting students globally through blockchain education
-            </motion.p>
+              {/* Stats overlay */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 1.5 }}
+                viewport={{ once: true }}
+                className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center"
+              >
+                <div className="bg-[#9EFF00]/10 rounded-xl p-4 border border-[#9EFF00]/20">
+                  <div className="text-2xl font-bold text-[#9EFF00]">5+</div>
+                  <div className="text-sm text-gray-300">Countries</div>
+                </div>
+                <div className="bg-[#9EFF00]/10 rounded-xl p-4 border border-[#9EFF00]/20">
+                  <div className="text-2xl font-bold text-[#9EFF00]">500+</div>
+                  <div className="text-sm text-gray-300">Community</div>
+                </div>
+                <div className="bg-[#9EFF00]/10 rounded-xl p-4 border border-[#9EFF00]/20">
+                  <div className="text-2xl font-bold text-[#9EFF00]">2025</div>
+                  <div className="text-sm text-gray-300">Launch Year</div>
+                </div>
+                <div className="bg-[#9EFF00]/10 rounded-xl p-4 border border-[#9EFF00]/20">
+                  <div className="text-2xl font-bold text-[#9EFF00]">24/7</div>
+                  <div className="text-sm text-gray-300">Development</div>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       </div>

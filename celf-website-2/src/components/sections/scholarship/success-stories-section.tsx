@@ -23,10 +23,10 @@ const successStories = [
     country: "Philippines",
     field: "Computer Science",
     university: "University of the Philippines",
-    scholarship: "$15,000 Full Tuition",
-    tokensEarned: "2,500 CELF",
-    story: "CELF changed my life completely. Coming from a low-income family, I never thought I could afford university. Through consistent mining and community participation, I earned enough tokens to qualify for a full scholarship. Now I'm studying Computer Science and building apps to help my community.",
-    achievement: "Graduated with Honors, now working at a tech startup",
+    scholarship: "$5,000 Pilot Scholarship",
+    tokensEarned: "Beta Tester",
+    story: "I was selected as one of CELF's early pilot scholarship recipients during their foundation phase. The support I received helped me pursue my Computer Science degree. I'm excited to be part of the community as they prepare for their full platform launch in 2025.",
+    achievement: "Pilot program graduate, now beta testing the platform",
     image: "/api/placeholder/80/80"
   },
   {
@@ -35,10 +35,10 @@ const successStories = [
     country: "Egypt",
     field: "Engineering",
     university: "Cairo University",
-    scholarship: "$8,000 Partial Tuition",
-    tokensEarned: "1,800 CELF",
-    story: "The traditional scholarship system was too competitive and biased. CELF gave me a fair chance based on my dedication and effort. I mined tokens for 8 months while working part-time, and it paid off. The scholarship covered most of my engineering degree costs.",
-    achievement: "Completed degree, now working as a civil engineer",
+    scholarship: "$3,000 Early Support",
+    tokensEarned: "Community Leader",
+    story: "Being part of CELF's early community has been incredible. I received support during their pilot phase and now help other students understand the upcoming platform. The traditional scholarship system needed innovation, and CELF is building exactly that.",
+    achievement: "Community ambassador, helping prepare for 2025 launch",
     image: "/api/placeholder/80/80"
   },
   {
@@ -47,10 +47,10 @@ const successStories = [
     country: "Nigeria",
     field: "Medicine",
     university: "University of Lagos",
-    scholarship: "$20,000 Full Tuition + Living",
-    tokensEarned: "3,200 CELF",
-    story: "As a first-generation college student, CELF opened doors I never knew existed. The community support was incredible - other students helped me understand the process and motivated me to keep mining. Now I'm pursuing my dream of becoming a doctor.",
-    achievement: "Top 5% of medical school class, research published",
+    scholarship: "$4,000 Foundation Grant",
+    tokensEarned: "Early Supporter",
+    story: "As a first-generation college student, being part of CELF's early community opened my eyes to the future of education funding. I received a foundation grant and now I'm excited to experience the full platform when it launches. The innovation they're building is revolutionary.",
+    achievement: "Foundation grant recipient, platform beta tester",
     image: "/api/placeholder/80/80"
   }
 ];
@@ -64,9 +64,9 @@ const communityStats = [
   },
   {
     icon: Trophy,
-    number: "150+",
-    label: "Success Stories",
-    description: "Lives transformed through education"
+    number: "25+",
+    label: "Pilot Recipients",
+    description: "Early scholarship recipients in our foundation phase"
   },
   {
     icon: Heart,
@@ -266,8 +266,8 @@ export function SuccessStoriesSection() {
               </h3>
               
               <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-                Join thousands of students who have already transformed their lives through CELF scholarships. 
-                Start mining tokens today and write your own success story.
+                Join our growing community of early supporters preparing for the 2025 platform launch.
+                Be among the first to experience revolutionary blockchain-based education funding.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
