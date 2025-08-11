@@ -33,26 +33,25 @@ const footerLinks = {
   programs: [
     { label: "What is CELF", href: "/what-is-celf" },
     { label: "Scholarship Program", href: "/scholarship-program" },
+    { label: "Mentorship", href: "/mentorship" },
     { label: "How It Works", href: "/how-it-works" },
     { label: "Token Mining", href: "/how-it-works#mining-process" },
     { label: "Community", href: "/community" },
-    { label: "Success Stories", href: "/scholarship-program#success-stories" }
+    { label: "Success Stories", href: "/success-stories" }
   ],
   resources: [
     { label: "Download App", href: "/download" },
-    { label: "Documentation", href: "/docs" },
-    { label: "FAQ", href: "/how-it-works#faq" },
     { label: "Support Center", href: "/support" },
     { label: "Blog", href: "/blog" },
+    { label: "Socials", href: "/socials" },
+    { label: "Documentation", href: "/docs" },
     { label: "Whitepaper", href: "/whitepaper" }
   ],
   legal: [
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms of Service", href: "/terms" },
-    { label: "Cookie Policy", href: "/cookies" },
-    { label: "Compliance", href: "/compliance" },
-    { label: "Security", href: "/security" },
-    { label: "Accessibility", href: "/accessibility" }
+    { label: "License", href: "/license" },
+    { label: "Security", href: "/security" }
   ]
 };
 

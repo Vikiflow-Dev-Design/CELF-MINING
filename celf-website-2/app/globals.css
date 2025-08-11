@@ -162,3 +162,71 @@ body {
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* Custom Scrollbar Styles */
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 10, 10, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #9EFF00 0%, #7ACC00 100%);
+  border-radius: 4px;
+  border: 1px solid rgba(10, 10, 10, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #B3FF33 0%, #8FDD00 100%);
+  box-shadow: 0 0 8px rgba(158, 255, 0, 0.3);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, #8FDD00 0%, #6BB300 100%);
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(10, 10, 10, 0.3);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #9EFF00 rgba(10, 10, 10, 0.3);
+}
+
+/* Custom scrollbar class for specific elements */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #9EFF00 rgba(10, 10, 10, 0.3);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(10, 10, 10, 0.3);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #9EFF00 0%, #7ACC00 100%);
+  border-radius: 4px;
+  border: 1px solid rgba(10, 10, 10, 0.2);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #B3FF33 0%, #8FDD00 100%);
+  box-shadow: 0 0 8px rgba(158, 255, 0, 0.3);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, #8FDD00 0%, #6BB300 100%);
+}

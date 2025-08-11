@@ -1,15 +1,35 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Menu, MenuItem, HoveredLink, ProductItem } from "@/src/components/ui/navbar-menu";
 import { Button } from "@/src/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useScrollDirection } from "@/src/hooks/useScrollDirection";
 
 export function CELFNavbarAceternity({ className }: { className?: string }) {
   const [active, setActive] = useState<string | null>(null);
+  const { isVisible, scrollY } = useScrollDirection();
 
   return (
-    <div className={cn("fixed top-4 inset-x-0 max-w-4xl mx-auto z-50", className)}>
+    <motion.div
+      initial={{ y: 0, opacity: 1 }}
+      animate={{
+        y: isVisible ? 0 : -120,
+      }}
+      transition={{
+        duration: 0.4,
+        ease: [0.25, 0.46, 0.45, 0.94],
+        type: "tween"
+      }}
+      className={cn(
+        "fixed top-4 inset-x-0 max-w-4xl mx-auto z-50",
+        className
+      )}
+      style={{
+        willChange: "transform"
+      }}
+    >
       {/* Header with Logo and CTA */}
       <div className="flex items-center justify-between w-full mb-4 px-6">
         {/* CELF Logo */}
@@ -43,8 +63,9 @@ export function CELFNavbarAceternity({ className }: { className?: string }) {
             <div className="flex flex-col space-y-4 text-sm">
               <HoveredLink href="/what-is-celf">What is CELF</HoveredLink>
               <HoveredLink href="/about">About Us</HoveredLink>
-              <HoveredLink href="/scholarship-program">Scholarship Program</HoveredLink>
-              <HoveredLink href="/roadmap">Roadmap</HoveredLink>
+              <HoveredLink href="/about#team">Our Team</HoveredLink>
+              <HoveredLink href="/about#mission">Mission & Vision</HoveredLink>
+              <HoveredLink href="/how-it-works">How It Works</HoveredLink>
             </div>
           </MenuItem>
 
@@ -52,7 +73,7 @@ export function CELFNavbarAceternity({ className }: { className?: string }) {
             <div className="text-sm grid grid-cols-2 gap-6 p-4">
               <ProductItem
                 title="Token Mining"
-                href="/what-is-celf#mining"
+                href="/how-it-works#mining"
                 src="/api/placeholder/140/70"
                 description="Mine CELF tokens through our innovative system to qualify for educational scholarships"
               />
@@ -70,7 +91,7 @@ export function CELFNavbarAceternity({ className }: { className?: string }) {
               />
               <ProductItem
                 title="Educational Community"
-                href="/socials"
+                href="/community"
                 src="/api/placeholder/140/70"
                 description="Join our vibrant community of students, educators, and scholarship recipients"
               />
@@ -80,31 +101,31 @@ export function CELFNavbarAceternity({ className }: { className?: string }) {
           <MenuItem setActive={setActive} active={active} item="Programs">
             <div className="flex flex-col space-y-4 text-sm">
               <HoveredLink href="/scholarship-program">Scholarship Program</HoveredLink>
-              <HoveredLink href="/mentorship">Mentorship Requests</HoveredLink>
-              <HoveredLink href="/newsletter">Newsletter</HoveredLink>
-              <HoveredLink href="/donate">Donate & Sponsor</HoveredLink>
+              <HoveredLink href="/mentorship">Mentorship</HoveredLink>
+              <HoveredLink href="/community">Community</HoveredLink>
+              <HoveredLink href="/success-stories">Success Stories</HoveredLink>
             </div>
           </MenuItem>
 
           <MenuItem setActive={setActive} active={active} item="Resources">
             <div className="flex flex-col space-y-4 text-sm">
               <HoveredLink href="/download">Download App</HoveredLink>
-              <HoveredLink href="/help-center">Help Center</HoveredLink>
-              <HoveredLink href="/contact">Contact Us</HoveredLink>
-              <HoveredLink href="/contact-support">Support Center</HoveredLink>
+              <HoveredLink href="/support">Support Center</HoveredLink>
+              <HoveredLink href="/blog">Blog</HoveredLink>
+              <HoveredLink href="/socials">Socials</HoveredLink>
             </div>
           </MenuItem>
 
           <MenuItem setActive={setActive} active={active} item="Legal">
             <div className="flex flex-col space-y-4 text-sm">
-              <HoveredLink href="/terms">Terms of Service</HoveredLink>
+              <HoveredLink href="/terms">Terms & Conditions</HoveredLink>
               <HoveredLink href="/privacy">Privacy Policy</HoveredLink>
-              <HoveredLink href="/cookies">Cookie Policy</HoveredLink>
-              <HoveredLink href="/compliance">Compliance</HoveredLink>
+              <HoveredLink href="/license">License</HoveredLink>
+              <HoveredLink href="/security">Security</HoveredLink>
             </div>
           </MenuItem>
         </Menu>
       </div>
-    </div>
+    </motion.div>
   );
 }

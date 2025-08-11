@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ChevronDown } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useScrollDirection } from "@/src/hooks/useScrollDirection";
+import { useBodyScrollLock } from "@/src/hooks/useBodyScrollLock";
 
 const navigationItems = [
   {
@@ -13,34 +15,44 @@ const navigationItems = [
     href: "/",
   },
   {
-    label: "What is CELF",
-    href: "/what-is-celf",
-  },
-  {
-    label: "About",
+    label: "About CELF",
     href: "/about",
     submenu: [
+      { label: "What is CELF", href: "/what-is-celf" },
       { label: "About Us", href: "/about" },
       { label: "Our Team", href: "/about#team" },
       { label: "Mission & Vision", href: "/about#mission" },
+      { label: "How It Works", href: "/how-it-works" },
     ],
   },
   {
     label: "Programs",
-    href: "/programs",
+    href: "/scholarship-program",
     submenu: [
       { label: "Scholarship Program", href: "/scholarship-program" },
       { label: "Mentorship", href: "/mentorship" },
-      { label: "Newsletter", href: "/newsletter" },
+      { label: "Community", href: "/community" },
+      { label: "Success Stories", href: "/success-stories" },
     ],
   },
   {
     label: "Resources",
-    href: "/resources",
+    href: "/download",
     submenu: [
       { label: "Download App", href: "/download" },
-      { label: "Help Center", href: "/help" },
-      { label: "Roadmap", href: "/roadmap" },
+      { label: "Support Center", href: "/support" },
+      { label: "Blog", href: "/blog" },
+      { label: "Socials", href: "/socials" },
+    ],
+  },
+  {
+    label: "Legal",
+    href: "/terms",
+    submenu: [
+      { label: "Terms & Conditions", href: "/terms" },
+      { label: "Privacy Policy", href: "/privacy" },
+      { label: "License", href: "/license" },
+      { label: "Security", href: "/security" },
     ],
   },
   {
@@ -51,29 +63,38 @@ const navigationItems = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const { isVisible, scrollY } = useScrollDirection();
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  // Lock body scroll when mobile menu is open
+  useBodyScrollLock(isOpen);
 
   const toggleMobile = () => setIsOpen(!isOpen);
-  const closeMobile = () => setIsOpen(false);
+  const closeMobile = () => {
+    setIsOpen(false);
+    setActiveDropdown(null);
+  };
 
   return (
     <>
       <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
+        initial={{ y: 0, opacity: 1 }}
+        animate={{
+          y: isVisible ? 0 : -100,
+        }}
+        transition={{
+          duration: 0.4,
+          ease: [0.25, 0.46, 0.45, 0.94], // Custom easing for smoother animation
+          type: "tween"
+        }}
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-          "bg-[#0A0A0A] border-b border-[#9EFF00]/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
+          "fixed top-0 left-0 right-0 z-50",
+          "bg-[#0A0A0A]/95 backdrop-blur-md border-b border-[#9EFF00]/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)]",
+          scrollY > 20 && "bg-[#0A0A0A]/98"
         )}
+        style={{
+          willChange: "transform"
+        }}
       >
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
@@ -172,9 +193,9 @@ export function Navbar() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
-              className="lg:hidden bg-[#0A0A0A] border-t border-[#9EFF00]/20"
+              className="lg:hidden bg-[#0A0A0A] border-t border-[#9EFF00]/20 fixed left-0 right-0 top-16 bottom-0 min-h-screen z-40 overflow-y-auto custom-scrollbar"
             >
-              <div className="container mx-auto px-4 py-6">
+              <div className="container mx-auto px-4 py-6 pb-32">
                 <nav className="space-y-2">
                   {navigationItems.map((item) => (
                     <div key={item.href}>
@@ -204,7 +225,7 @@ export function Navbar() {
                 </nav>
 
                 {/* Mobile CTA Buttons */}
-                <div className="mt-6 pt-6 border-t border-[#9EFF00]/20 space-y-3">
+                <div className="mt-8 pt-6 border-t border-[#9EFF00]/20 space-y-4">
                   <Button variant="ghost" className="w-full" asChild>
                     <Link href="/login" onClick={closeMobile}>
                       Login
