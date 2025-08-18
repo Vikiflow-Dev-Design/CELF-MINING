@@ -3,9 +3,11 @@
  */
 
 import { Share, Clipboard, Alert } from 'react-native';
+import { useWalletStore } from '@/stores/walletStore';
 
 export const useReceiveTokens = () => {
-  const walletAddress = '0x1234567890abcdef1234567890abcdef12345678';
+  const { currentAddress } = useWalletStore();
+  const walletAddress = currentAddress || 'celf1234567890abcdef1234567890abcdef12345678'; // Fallback
   const qrCodeData = `celf:${walletAddress}`;
 
   const copyAddress = () => {

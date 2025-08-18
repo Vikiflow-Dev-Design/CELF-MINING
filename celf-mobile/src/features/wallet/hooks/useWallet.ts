@@ -12,7 +12,9 @@ export const useWallet = () => {
     transactions: recentTransactions,
     addresses,
     currentAddress: walletAddress,
-    getFormattedBalance
+    getFormattedBalance,
+    refreshBalance,
+    refreshTransactions
   } = useWalletStore();
 
   const handleSendTokens = () => {
@@ -32,9 +34,16 @@ export const useWallet = () => {
   };
 
   const refreshWalletData = async () => {
-    // In a real app, this would fetch fresh data from the server
-    // For now, we'll simulate a refresh
-    return new Promise<void>(resolve => setTimeout(resolve, 1500));
+    try {
+      // Refresh both balance and transactions
+      await Promise.all([
+        refreshBalance(),
+        refreshTransactions()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing wallet data:', error);
+      throw error;
+    }
   };
 
   return {

@@ -51,9 +51,9 @@ export const useExchange = (): ExchangeState & ExchangeActions & { exchangeData:
     setExchangeAmount(''); // Clear amount when switching direction
   };
 
-  const handleExchange = () => {
+  const handleExchange = async () => {
     const validation = validateExchangeAmount(exchangeAmount, maxExchangeAmount);
-    
+
     if (!validation.isValid) {
       Alert.alert('Exchange Error', validation.message);
       return;
@@ -63,20 +63,21 @@ export const useExchange = (): ExchangeState & ExchangeActions & { exchangeData:
 
     try {
       if (exchangeDirection === 'toSendable') {
-        exchangeToSendable(amount);
+        await exchangeToSendable(amount);
       } else {
-        exchangeToNonSendable(amount);
+        await exchangeToNonSendable(amount);
       }
 
       const successMessage = getSuccessMessage(exchangeDirection, exchangeAmount, getFormattedBalance);
-      
+
       Alert.alert(
         'Exchange Successful',
         successMessage,
         [{ text: 'OK', onPress: () => { setExchangeAmount(''); router.back(); } }]
       );
     } catch (error) {
-      Alert.alert('Exchange Failed', 'An error occurred during the exchange. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during the exchange. Please try again.';
+      Alert.alert('Exchange Failed', errorMessage);
     }
   };
 

@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { apiService } from '@/services/apiService';
 
 export interface Transaction {
   id: string;
@@ -40,20 +41,22 @@ interface WalletState {
   // Legacy fields for backward compatibility
   availableBalance: number;
   pendingBalance: number;
-  
+
   // Addresses
   addresses: WalletAddress[];
   currentAddress: string;
-  
+
   // Transactions
   transactions: Transaction[];
   isLoadingTransactions: boolean;
-  
+  isLoadingBalance: boolean;
+
   // Settings
   currency: 'CELF' | 'USD';
   exchangeRate: number; // CELF to USD
-  
+
   // Actions
+  refreshBalance: () => Promise<void>;
   updateBalance: (balance: number) => void;
   updateBalanceBreakdown: (breakdown: Partial<BalanceBreakdown>) => void;
   addMiningReward: (amount: number) => void;
@@ -72,50 +75,76 @@ interface WalletState {
 
 export const useWalletStore = create<WalletState>((set, get) => ({
       // Initial state
-      totalBalance: 24.3564,
+      totalBalance: 0,
       balanceBreakdown: {
-        sendable: 5.0000, // Initial sendable balance (small amount)
-        nonSendable: 19.3564, // Initial mining rewards (majority)
+        sendable: 0,
+        nonSendable: 0,
         pending: 0,
       },
       // Legacy fields for backward compatibility
-      availableBalance: 24.3564,
+      availableBalance: 0,
       pendingBalance: 0,
-      
-      addresses: [
-        {
-          address: 'celf1x2y3z4a5b6c7d8e9f0g1h2i3j4k5l6m7n8o9p0',
-          label: 'Main Wallet',
-          isDefault: true,
-        },
-      ],
-      currentAddress: 'celf1x2y3z4a5b6c7d8e9f0g1h2i3j4k5l6m7n8o9p0',
-      
-      transactions: [
-        {
-          id: '1',
-          type: 'mining',
-          amount: 2.5000,
-          timestamp: Date.now() - 86400000, // 1 day ago
-          status: 'completed',
-          description: 'Mining reward',
-        },
-        {
-          id: '2',
-          type: 'receive',
-          amount: 10.0000,
-          fromAddress: 'celf1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0',
-          timestamp: Date.now() - 172800000, // 2 days ago
-          status: 'completed',
-          description: 'Received from friend',
-        },
-      ],
+
+      addresses: [],
+      currentAddress: '',
+
+      transactions: [],
       isLoadingTransactions: false,
-      
+      isLoadingBalance: false,
+
       currency: 'CELF',
       exchangeRate: 0.25, // 1 CELF = $0.25 USD
       
       // Actions
+      refreshBalance: async () => {
+        set({ isLoadingBalance: true });
+
+        try {
+          const response = await apiService.getWalletBalance();
+
+          if (response.success && response.data) {
+            const { totalBalance, sendableBalance, nonSendableBalance, pendingBalance, currentAddress } = response.data;
+
+            const newBreakdown = {
+              sendable: sendableBalance,
+              nonSendable: nonSendableBalance,
+              pending: pendingBalance,
+            };
+
+            set({
+              totalBalance,
+              balanceBreakdown: newBreakdown,
+              availableBalance: sendableBalance, // Legacy compatibility
+              pendingBalance: pendingBalance, // Legacy compatibility
+              currentAddress,
+              isLoadingBalance: false,
+            });
+
+            // Update addresses if we have a current address
+            if (currentAddress) {
+              const state = get();
+              const addressExists = state.addresses.some(addr => addr.address === currentAddress);
+
+              if (!addressExists) {
+                set({
+                  addresses: [
+                    ...state.addresses,
+                    {
+                      address: currentAddress,
+                      label: 'Main Wallet',
+                      isDefault: true,
+                    }
+                  ]
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to refresh balance:', error);
+          set({ isLoadingBalance: false });
+        }
+      },
+
       updateBalance: (balance: number) => {
         set((state) => {
           const breakdown = state.balanceBreakdown;

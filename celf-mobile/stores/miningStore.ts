@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { miningService } from '@/services/miningService';
+import { apiService } from '@/services/apiService';
 
 export interface MiningSession {
   id: string;
@@ -23,20 +24,24 @@ interface MiningState {
   miningRate: number;
   runtime: string;
   tokensPerSecond: number;
-  
+  isLoading: boolean;
+
   // Mining history
   sessions: MiningSession[];
   totalLifetimeEarnings: number;
   totalMiningTime: number; // in milliseconds
-  
+
   // Statistics
   dailyEarnings: number;
   weeklyEarnings: number;
   monthlyEarnings: number;
-  
+
   // Actions
-  startMining: () => void;
-  stopMining: () => void;
+  startMining: () => Promise<void>;
+  stopMining: () => Promise<void>;
+  pauseMining: () => Promise<void>;
+  resumeMining: () => Promise<void>;
+  refreshMiningStatus: () => Promise<void>;
   updateBalance: (balance: number) => void;
   updateEarnings: (earnings: number) => void;
   updateRuntime: (runtime: string) => void;
@@ -55,6 +60,7 @@ export const useMiningStore = create<MiningState>((set, get) => ({
   miningRate: 0.125,
   runtime: '0h 0m 0s',
   tokensPerSecond: 0.125 / 3600,
+  isLoading: false,
 
   // Session data (will be saved to database later)
   sessions: [],
