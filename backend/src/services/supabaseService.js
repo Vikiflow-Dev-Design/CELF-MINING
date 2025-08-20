@@ -205,6 +205,233 @@ class SupabaseService {
   }
 
   /**
+   * Delete a single user and all related data
+   * @param {string} userId - User ID to delete
+   * @returns {object} Deletion summary
+   */
+  async deleteUser(userId) {
+    const client = this.getClient();
+
+    try {
+      // Start a transaction-like operation by collecting all related data first
+      const user = await this.findUserById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Get related data counts for summary
+      const wallet = await this.findWalletByUserId(userId);
+      const miningSessions = await this.find('mining_sessions', { user_id: userId });
+      const fromTransactions = await this.find('transactions', { from_user_id: userId });
+      const toTransactions = await this.find('transactions', { to_user_id: userId });
+
+      // Delete related data (order matters due to foreign key constraints)
+      // 1. Mining sessions (CASCADE will handle this, but we'll be explicit)
+      await client.from('mining_sessions').delete().eq('user_id', userId);
+
+      // 2. Update transactions to set user references to NULL (as per schema)
+      await client.from('transactions').update({ from_user_id: null }).eq('from_user_id', userId);
+      await client.from('transactions').update({ to_user_id: null }).eq('to_user_id', userId);
+
+      // 3. Update contact submissions and support tickets assigned_to field
+      await client.from('contact_submissions').update({ assigned_to: null }).eq('assigned_to', userId);
+      await client.from('support_tickets').update({ assigned_to: null }).eq('assigned_to', userId);
+
+      // 4. Delete wallet (CASCADE will handle this)
+      if (wallet) {
+        await client.from('wallets').delete().eq('user_id', userId);
+      }
+
+      // 5. Finally delete the user
+      const { error } = await client.from('users').delete().eq('id', userId);
+      if (error) {
+        throw new Error(`Error deleting user: ${error.message}`);
+      }
+
+      return {
+        deletedUser: {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name
+        },
+        relatedDataDeleted: {
+          wallet: wallet ? 1 : 0,
+          miningSessions: miningSessions.length,
+          transactionsUpdated: fromTransactions.length + toTransactions.length
+        }
+      };
+    } catch (error) {
+      throw new Error(`Failed to delete user: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete multiple users by their IDs
+   * @param {string[]} userIds - Array of user IDs to delete
+   * @returns {object} Deletion summary
+   */
+  async deleteMultipleUsers(userIds) {
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      throw new Error('User IDs array is required and cannot be empty');
+    }
+
+    const client = this.getClient();
+    const deletionResults = [];
+    const errors = [];
+
+    for (const userId of userIds) {
+      try {
+        const result = await this.deleteUser(userId);
+        deletionResults.push(result);
+      } catch (error) {
+        errors.push({
+          userId,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      successful: deletionResults,
+      failed: errors,
+      summary: {
+        totalRequested: userIds.length,
+        successful: deletionResults.length,
+        failed: errors.length
+      }
+    };
+  }
+
+  /**
+   * Delete all users (DANGEROUS - Admin only)
+   * @param {object} options - Deletion options
+   * @returns {object} Deletion summary
+   */
+  async deleteAllUsers(options = {}) {
+    const { excludeAdmins = true, confirmationToken } = options;
+
+    // Safety check - require confirmation token
+    if (confirmationToken !== 'DELETE_ALL_USERS_CONFIRMED') {
+      throw new Error('Confirmation token required for bulk deletion');
+    }
+
+    const client = this.getClient();
+
+    try {
+      // Get all users (optionally excluding admins)
+      let query = client.from('users').select('id, email, role, first_name, last_name');
+
+      if (excludeAdmins) {
+        query = query.neq('role', 'admin');
+      }
+
+      const { data: users, error } = await query;
+      if (error) {
+        throw new Error(`Error fetching users: ${error.message}`);
+      }
+
+      if (users.length === 0) {
+        return {
+          message: 'No users found to delete',
+          deletedCount: 0
+        };
+      }
+
+      // Delete all related data first
+      const userIds = users.map(user => user.id);
+
+      // 1. Delete mining sessions
+      await client.from('mining_sessions').delete().in('user_id', userIds);
+
+      // 2. Update transactions to remove user references
+      await client.from('transactions').update({ from_user_id: null }).in('from_user_id', userIds);
+      await client.from('transactions').update({ to_user_id: null }).in('to_user_id', userIds);
+
+      // 3. Update contact submissions and support tickets
+      await client.from('contact_submissions').update({ assigned_to: null }).in('assigned_to', userIds);
+      await client.from('support_tickets').update({ assigned_to: null }).in('assigned_to', userIds);
+
+      // 4. Delete wallets
+      await client.from('wallets').delete().in('user_id', userIds);
+
+      // 5. Delete users
+      const { error: deleteError } = await client.from('users').delete().in('id', userIds);
+      if (deleteError) {
+        throw new Error(`Error deleting users: ${deleteError.message}`);
+      }
+
+      return {
+        message: `Successfully deleted ${users.length} users`,
+        deletedCount: users.length,
+        deletedUsers: users.map(user => ({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          name: `${user.first_name} ${user.last_name}`
+        })),
+        excludedAdmins: excludeAdmins
+      };
+    } catch (error) {
+      throw new Error(`Failed to delete all users: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get user deletion preview (what will be deleted)
+   * @param {string} userId - User ID to preview deletion for
+   * @returns {object} Preview of what will be deleted
+   */
+  async getUserDeletionPreview(userId) {
+    try {
+      const user = await this.findUserById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const wallet = await this.findWalletByUserId(userId);
+      const miningSessions = await this.find('mining_sessions', { user_id: userId });
+      const fromTransactions = await this.find('transactions', { from_user_id: userId });
+      const toTransactions = await this.find('transactions', { to_user_id: userId });
+      const assignedContacts = await this.find('contact_submissions', { assigned_to: userId });
+      const assignedTickets = await this.find('support_tickets', { assigned_to: userId });
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          role: user.role,
+          createdAt: user.created_at
+        },
+        relatedData: {
+          wallet: wallet ? {
+            id: wallet.id,
+            totalBalance: wallet.total_balance,
+            sendableBalance: wallet.sendable_balance
+          } : null,
+          miningSessions: {
+            count: miningSessions.length,
+            totalTokensEarned: miningSessions.reduce((sum, session) => sum + parseFloat(session.tokens_earned || 0), 0)
+          },
+          transactions: {
+            sentCount: fromTransactions.length,
+            receivedCount: toTransactions.length,
+            totalCount: fromTransactions.length + toTransactions.length
+          },
+          assignments: {
+            contactSubmissions: assignedContacts.length,
+            supportTickets: assignedTickets.length
+          }
+        }
+      };
+    } catch (error) {
+      throw new Error(`Failed to get deletion preview: ${error.message}`);
+    }
+  }
+
+  /**
    * Wallet-specific operations
    */
   async findWalletByUserId(userId) {
