@@ -1,10 +1,10 @@
 /**
  * Hybrid Storage Utility
- * Uses Expo SecureStore for sensitive data and AsyncStorage for bulk data
+ * Uses Expo SecureStore for native and localStorage for web
  */
 
 import * as SecureStore from 'expo-secure-store';
-// Note: AsyncStorage not needed for this implementation
+import { Platform } from 'react-native';
 
 // Storage interface for Zustand
 export interface StorageInterface {
@@ -14,30 +14,79 @@ export interface StorageInterface {
 }
 
 /**
+ * Web Storage Fallback - for web development
+ * Uses localStorage when SecureStore is not available
+ */
+const webStorage: StorageInterface = {
+  getItem: async (key: string) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return localStorage.getItem(key);
+      }
+      return null;
+    } catch (error) {
+      console.error('localStorage getItem error:', error);
+      return null;
+    }
+  },
+
+  setItem: async (key: string, value: string) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(key, value);
+      }
+    } catch (error) {
+      console.error('localStorage setItem error:', error);
+      throw error;
+    }
+  },
+
+  removeItem: async (key: string) => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error('localStorage removeItem error:', error);
+      throw error;
+    }
+  },
+};
+
+/**
  * Secure Storage - for sensitive data
- * Uses Expo SecureStore with encryption
+ * Uses Expo SecureStore on native, localStorage on web
  */
 export const secureStorage: StorageInterface = {
   getItem: async (key: string) => {
     try {
+      if (Platform.OS === 'web') {
+        return webStorage.getItem(key);
+      }
       return await SecureStore.getItemAsync(key);
     } catch (error) {
       console.error('SecureStore getItem error:', error);
       return null;
     }
   },
-  
+
   setItem: async (key: string, value: string) => {
     try {
+      if (Platform.OS === 'web') {
+        return webStorage.setItem(key, value);
+      }
       await SecureStore.setItemAsync(key, value);
     } catch (error) {
       console.error('SecureStore setItem error:', error);
       throw error;
     }
   },
-  
+
   removeItem: async (key: string) => {
     try {
+      if (Platform.OS === 'web') {
+        return webStorage.removeItem(key);
+      }
       await SecureStore.deleteItemAsync(key);
     } catch (error) {
       console.error('SecureStore removeItem error:', error);
@@ -52,21 +101,28 @@ export const secureStorage: StorageInterface = {
  */
 
 /**
- * SecureStore-only implementation (if you want to avoid AsyncStorage completely)
- * Note: Has size limitations and performance considerations
+ * SecureStore-only implementation with web fallback
+ * Uses SecureStore on native, localStorage on web
  */
 export const secureOnlyStorage: StorageInterface = {
   getItem: async (key: string) => {
     try {
+      if (Platform.OS === 'web') {
+        return webStorage.getItem(key);
+      }
       return await SecureStore.getItemAsync(key);
     } catch (error) {
       console.error('SecureStore getItem error:', error);
       return null;
     }
   },
-  
+
   setItem: async (key: string, value: string) => {
     try {
+      if (Platform.OS === 'web') {
+        return webStorage.setItem(key, value);
+      }
+
       // Check size limit (SecureStore has ~2KB limit per key)
       if (value.length > 2000) {
         console.warn(`Large data (${value.length} chars) being stored in SecureStore for key: ${key}`);
@@ -78,9 +134,12 @@ export const secureOnlyStorage: StorageInterface = {
       throw error;
     }
   },
-  
+
   removeItem: async (key: string) => {
     try {
+      if (Platform.OS === 'web') {
+        return webStorage.removeItem(key);
+      }
       await SecureStore.deleteItemAsync(key);
     } catch (error) {
       console.error('SecureStore removeItem error:', error);

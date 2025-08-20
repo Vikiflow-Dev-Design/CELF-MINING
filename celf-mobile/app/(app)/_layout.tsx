@@ -3,6 +3,8 @@ import { Stack } from 'expo-router';
 import { View, Text } from 'react-native';
 import { NavigationProvider, useNavigation } from '@/components/navigation/NavigationContext';
 import { Sidebar } from '@/components/navigation/Sidebar';
+import { useAuthStore } from '@/stores/authStore';
+import { Redirect } from 'expo-router';
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ComponentType<{ error: Error }> },
@@ -51,6 +53,12 @@ class ErrorBoundary extends React.Component<
 
 function AppContent() {
   const { sidebarOpen, closeSidebar } = useNavigation();
+  const { isSignedIn } = useAuthStore();
+
+  // Redirect to auth if not signed in
+  if (!isSignedIn) {
+    return <Redirect href="/" />;
+  }
 
   return (
     <ErrorBoundary>

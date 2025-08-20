@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/components/ui';
 import { Colors, Spacing, Layout } from '@/constants/design-tokens';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useAuthStore } from '@/stores/authStore';
+import { performDirectLogout } from '@/utils/logout';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -24,6 +26,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
   const themeColors = useThemeColors();
+  const { user, isLoading } = useAuthStore();
   const [isMounted, setIsMounted] = React.useState(false);
 
   const translateX = useSharedValue(-SIDEBAR_WIDTH);
@@ -96,6 +99,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       route: '/help-center',
     },
   ];
+
+  const handleLogout = async () => {
+    console.log('🧪 Testing utility-based direct logout...');
+    try {
+      onClose(); // Close sidebar first
+      await performDirectLogout('Sidebar Navigation');
+      console.log('✅ Utility direct logout completed');
+    } catch (error) {
+      console.error('❌ Utility direct logout failed:', error);
+    }
+  };
 
   const handleNavigation = (route: string) => {
     try {
@@ -295,6 +309,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </Typography>
               </TouchableOpacity>
             ))}
+
+            {/* Logout Button */}
+            <TouchableOpacity
+              onPress={handleLogout}
+              disabled={isLoading}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: Layout.screenMargin.mobile,
+                paddingVertical: Spacing.lg,
+                marginTop: Spacing.md,
+                borderTopWidth: 1,
+                borderTopColor: themeColors.border.secondary,
+              }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: themeColors.status.error + '20',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: Spacing.md,
+              }}>
+                <Ionicons name="log-out" size={20} color={themeColors.status.error} />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Typography variant="bodyMedium" color="error">
+                  {isLoading ? 'Signing Out...' : 'Sign Out'}
+                </Typography>
+                <Typography variant="caption" color="tertiary" style={{ marginTop: 2 }}>
+                  {user?.email}
+                </Typography>
+              </View>
+            </TouchableOpacity>
 
 
           </View>

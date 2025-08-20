@@ -88,21 +88,49 @@ export const useAuthStore = create<AuthState>()(
 
       // Sign out action
       signOut: async () => {
+        console.log('🚪 Starting logout process...');
         set({ isLoading: true });
 
         try {
+          console.log('📡 Calling backend logout API...');
           await apiService.logout();
+          console.log('✅ Backend logout successful');
         } catch (error) {
-          console.error('Logout error:', error);
+          console.error('❌ Logout API error:', error);
           // Continue with local logout even if API call fails
         }
 
-        set({
+        console.log('🧹 Clearing auth state...');
+
+        // Force clear the state immediately
+        const newState = {
           user: null,
           isSignedIn: false,
           isLoading: false,
           error: null,
-        });
+        };
+
+        set(newState);
+
+        // Also force clear any cached tokens
+        try {
+          await apiService.clearTokens();
+          console.log('🗑️ Tokens cleared from storage');
+        } catch (error) {
+          console.error('Error clearing tokens:', error);
+        }
+
+        console.log('✅ Logout complete - user should be redirected to auth screens');
+        console.log('📊 Final auth state:', newState);
+
+        // Force navigation reset - this might help with router issues
+        try {
+          const { router } = require('expo-router');
+          console.log('🔄 Attempting to reset router navigation...');
+          router.replace('/');
+        } catch (error) {
+          console.log('⚠️ Router reset failed (this is normal in some cases):', error.message);
+        }
       },
 
       // Update profile action

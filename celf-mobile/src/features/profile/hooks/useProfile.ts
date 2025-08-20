@@ -3,19 +3,23 @@
  */
 
 import { router } from 'expo-router';
-import { Alert } from 'react-native';
+import { useAuthStore } from '@/stores/authStore';
+import { performDirectLogout } from '@/utils/logout';
 
 export const useProfile = () => {
+  const { user, isLoading } = useAuthStore();
+
+  // Use real user data from auth store, with fallbacks for missing data
   const profileData = {
     profilePicture: null,
-    username: 'johndoe',
-    displayName: 'John Doe',
+    username: user?.email?.split('@')[0] || 'user',
+    displayName: `${user?.firstName || 'User'} ${user?.lastName || ''}`.trim(),
     bio: 'CELF mining enthusiast and crypto investor.',
-    email: 'john.doe@example.com',
-    joinDate: '2024-12-15',
-    totalMined: 1250.75,
-    referrals: 12,
-    achievements: 8,
+    email: user?.email || 'user@example.com',
+    joinDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '2024-12-15',
+    totalMined: 1250.75, // TODO: Connect to wallet store
+    referrals: 12, // TODO: Connect to referral system
+    achievements: 8, // TODO: Connect to achievements system
   };
 
   const menuItems = [
@@ -31,18 +35,14 @@ export const useProfile = () => {
     router.push(route as any);
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => {
-          // Handle logout logic
-          Alert.alert('Logged Out', 'You have been logged out successfully.');
-        }}
-      ]
-    );
+  const handleLogout = async () => {
+    console.log('🧪 Testing utility-based direct logout...');
+    try {
+      await performDirectLogout('Profile Screen');
+      console.log('✅ Utility direct logout completed');
+    } catch (error) {
+      console.error('❌ Utility direct logout failed:', error);
+    }
   };
 
   return {
@@ -50,5 +50,6 @@ export const useProfile = () => {
     menuItems,
     handleMenuPress,
     handleLogout,
+    isLoading, // Expose loading state for UI
   };
 };

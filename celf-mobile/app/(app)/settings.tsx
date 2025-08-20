@@ -11,6 +11,9 @@ import { Header } from '@/components/navigation/Header';
 import { useNavigation } from '@/components/navigation/NavigationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useAuthStore } from '@/stores/authStore';
+import { performDirectLogout } from '@/utils/logout';
+import { LogoutTester } from '@/components/debug/LogoutTester';
 import { Spacing, Layout } from '@/constants/design-tokens';
 import { router } from 'expo-router';
 
@@ -30,6 +33,7 @@ export default function SettingsScreen() {
   const { toggleSidebar } = useNavigation();
   const { theme, toggleTheme } = useTheme();
   const themeColors = useThemeColors();
+  const { user, isLoading } = useAuthStore();
 
   const settingsItems: SettingItem[] = [
     {
@@ -91,6 +95,16 @@ export default function SettingsScreen() {
       route: '/app-information',
     },
   ];
+
+  const handleLogout = async () => {
+    console.log('🧪 Testing utility-based direct logout...');
+    try {
+      await performDirectLogout('Settings Screen');
+      console.log('✅ Utility direct logout completed');
+    } catch (error) {
+      console.error('❌ Utility direct logout failed:', error);
+    }
+  };
 
   const handleItemPress = (item: SettingItem) => {
     if (item.type === 'navigation' && item.route) {
@@ -177,9 +191,12 @@ export default function SettingsScreen() {
           paddingBottom: 32,
         }}>
           
+          {/* Logout Tester - Remove after testing */}
+          <LogoutTester />
+
           {/* Settings Card */}
           <Card variant="default" style={{ marginBottom: Spacing['2xl'] }}>
-            <Typography variant="h3" weight="semibold" style={{ 
+            <Typography variant="h3" weight="semibold" style={{
               marginBottom: Spacing.lg,
               paddingHorizontal: Spacing.md,
               paddingTop: Spacing.md,
@@ -188,6 +205,80 @@ export default function SettingsScreen() {
             </Typography>
 
             {settingsItems.map(renderSettingItem)}
+          </Card>
+
+          {/* Account Actions */}
+          <Card variant="default" style={{ marginBottom: Spacing['2xl'] }}>
+            <Typography variant="h3" weight="semibold" style={{
+              marginBottom: Spacing.lg,
+              paddingHorizontal: Spacing.md,
+              paddingTop: Spacing.md,
+            }}>
+              Account
+            </Typography>
+
+            {/* User Info */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: Spacing.md,
+              paddingHorizontal: Spacing.md,
+              borderBottomWidth: 1,
+              borderBottomColor: themeColors.border.secondary,
+            }}>
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: themeColors.primary.blue + '20',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: Spacing.md,
+              }}>
+                <Ionicons name="person" size={20} color={themeColors.primary.blue} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Typography variant="bodyMedium" weight="medium">
+                  {user?.firstName} {user?.lastName}
+                </Typography>
+                <Typography variant="caption" color="secondary">
+                  {user?.email}
+                </Typography>
+              </View>
+            </View>
+
+            {/* Logout Button */}
+            <TouchableOpacity
+              onPress={handleLogout}
+              disabled={isLoading}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: Spacing.lg,
+                paddingHorizontal: Spacing.md,
+              }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: themeColors.status.error + '20',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: Spacing.md,
+              }}>
+                <Ionicons name="log-out" size={20} color={themeColors.status.error} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Typography variant="bodyMedium" weight="medium" color="error">
+                  {isLoading ? 'Signing Out...' : 'Sign Out'}
+                </Typography>
+                <Typography variant="caption" color="secondary">
+                  Sign out of your CELF account
+                </Typography>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={themeColors.icon.tertiary} />
+            </TouchableOpacity>
           </Card>
 
           {/* App Version */}

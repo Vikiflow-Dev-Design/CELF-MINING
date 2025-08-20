@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { View, Modal, TouchableOpacity, Alert } from 'react-native';
+import { View, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Typography } from '@/components/ui';
 import { Colors, Spacing, Layout, BorderRadius } from '@/constants/design-tokens';
+import { useAuthStore } from '@/stores/authStore';
+import { performDirectLogout } from '@/utils/logout';
 
 export interface LogoutConfirmationModalProps {
   isVisible: boolean;
-  onConfirm: () => void;
+  onConfirm?: () => void; // Made optional since we'll handle logout internally
   onCancel: () => void;
   hasUnsavedData?: boolean;
   activeMiningSession?: boolean;
@@ -23,12 +25,25 @@ export const LogoutConfirmationModal: React.FC<LogoutConfirmationModalProps> = (
 
   const handleConfirm = async () => {
     setIsLoggingOut(true);
-    
-    // Simulate logout process
-    setTimeout(() => {
+
+    try {
+      console.log('🧪 Testing utility-based direct logout...');
+      // Use direct logout (no confirmation since modal already confirms)
+      await performDirectLogout('Logout Modal');
+      console.log('✅ Utility direct logout completed');
+
+      // Call the optional onConfirm callback if provided
+      if (onConfirm) {
+        onConfirm();
+      }
+
+      // Close the modal
+      onCancel();
+    } catch (error) {
+      console.error('❌ Utility direct logout failed:', error);
+    } finally {
       setIsLoggingOut(false);
-      onConfirm();
-    }, 1500);
+    }
   };
 
   const getWarningMessage = () => {

@@ -29,9 +29,10 @@ export const useAppInitialization = () => {
       await checkAuthStatus();
 
       // Step 2: If user is signed in, load their data
-      if (useAuthStore.getState().isSignedIn) {
+      const authState = useAuthStore.getState();
+      if (authState.isSignedIn) {
         console.log('👤 User is signed in, loading data...');
-        
+
         // Load wallet balance
         console.log('💰 Loading wallet balance...');
         await refreshBalance();

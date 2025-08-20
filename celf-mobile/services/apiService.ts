@@ -3,7 +3,7 @@
  * Handles all HTTP requests to the backend
  */
 
-import * as SecureStore from 'expo-secure-store';
+import { secureOnlyStorage } from '@/utils/storage';
 
 // Configuration
 const API_BASE_URL = __DEV__ 
@@ -61,7 +61,7 @@ class ApiService {
   // Token management
   async getToken(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(TOKEN_KEY);
+      return await secureOnlyStorage.getItem(TOKEN_KEY);
     } catch (error) {
       console.error('Error getting token:', error);
       return null;
@@ -70,7 +70,7 @@ class ApiService {
 
   async setToken(token: string): Promise<void> {
     try {
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      await secureOnlyStorage.setItem(TOKEN_KEY, token);
     } catch (error) {
       console.error('Error setting token:', error);
     }
@@ -78,7 +78,7 @@ class ApiService {
 
   async getRefreshToken(): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      return await secureOnlyStorage.getItem(REFRESH_TOKEN_KEY);
     } catch (error) {
       console.error('Error getting refresh token:', error);
       return null;
@@ -87,7 +87,7 @@ class ApiService {
 
   async setRefreshToken(token: string): Promise<void> {
     try {
-      await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+      await secureOnlyStorage.setItem(REFRESH_TOKEN_KEY, token);
     } catch (error) {
       console.error('Error setting refresh token:', error);
     }
@@ -95,8 +95,8 @@ class ApiService {
 
   async clearTokens(): Promise<void> {
     try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+      await secureOnlyStorage.removeItem(TOKEN_KEY);
+      await secureOnlyStorage.removeItem(REFRESH_TOKEN_KEY);
     } catch (error) {
       console.error('Error clearing tokens:', error);
     }
@@ -149,6 +149,12 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('API request failed:', error);
+
+      // Handle network errors gracefully
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error: Unable to connect to server. Please check your connection and ensure the backend is running.');
+      }
+
       throw error;
     }
   }
