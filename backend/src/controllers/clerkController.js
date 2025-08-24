@@ -80,7 +80,7 @@ class ClerkController {
           label: 'Main Wallet',
           isDefault: true
         }]),
-        sendable_balance: 5.0000, // Initial sendable balance
+        sendable_balance: 0, // No registration bonus
         non_sendable_balance: 0,
         pending_balance: 0
       });
@@ -195,7 +195,7 @@ class ClerkController {
             label: 'Main Wallet',
             isDefault: true
           }],
-          sendableBalance: 5.0000,
+          sendableBalance: 0, // No registration bonus
           nonSendableBalance: 0,
           pendingBalance: 0
         });

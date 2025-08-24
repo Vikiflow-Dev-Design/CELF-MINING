@@ -15,6 +15,7 @@ interface MiningStatsProps {
   miningRate: number;
   totalEarned: number;
   runtime: string;
+  countdown: string;
   tokensPerSecond: number;
   statusIndicatorOpacity: SharedValue<number>;
 }
@@ -24,6 +25,7 @@ export const MiningStats: React.FC<MiningStatsProps> = ({
   miningRate,
   totalEarned,
   runtime,
+  countdown,
   tokensPerSecond,
   statusIndicatorOpacity,
 }) => {
@@ -96,14 +98,20 @@ export const MiningStats: React.FC<MiningStatsProps> = ({
           color="success"
         />
 
-        <StatRow 
-          label="Runtime" 
-          value={runtime} 
+        <StatRow
+          label="Runtime"
+          value={runtime}
         />
 
-        <StatRow 
-          label="Tokens per second" 
-          value={tokensPerSecond.toFixed(6)} 
+        <StatRow
+          label="Time Remaining"
+          value={countdown}
+          color={isMining ? "warning" : "secondary"}
+        />
+
+        <StatRow
+          label="Tokens per second"
+          value={tokensPerSecond.toFixed(6)}
         />
       </View>
     </Card>

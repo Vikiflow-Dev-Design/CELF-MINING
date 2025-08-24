@@ -35,6 +35,7 @@ export default function MiningScreen() {
     totalBalance,
     totalEarned,
     runtime,
+    countdown,
     miningRate,
     timeRemaining,
     tokensPerSecond,
@@ -117,6 +118,7 @@ export default function MiningScreen() {
             miningRate={miningRate}
             totalEarned={totalEarned}
             runtime={runtime}
+            countdown={countdown}
             tokensPerSecond={tokensPerSecond}
             statusIndicatorOpacity={statusIndicatorOpacity}
           />

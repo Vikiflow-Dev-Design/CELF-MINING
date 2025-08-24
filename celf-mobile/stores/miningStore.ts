@@ -23,6 +23,7 @@ interface MiningState {
   totalEarned: number;
   miningRate: number;
   runtime: string;
+  countdown: string;
   tokensPerSecond: number;
   isLoading: boolean;
 
@@ -45,6 +46,7 @@ interface MiningState {
   updateBalance: (balance: number) => void;
   updateEarnings: (earnings: number) => void;
   updateRuntime: (runtime: string) => void;
+  updateCountdown: (countdown: string) => void;
   updateMiningState: (isMining: boolean) => void;
   addSession: (session: MiningSession) => void;
   updateMiningRate: (rate: number) => void;
@@ -59,6 +61,7 @@ export const useMiningStore = create<MiningState>((set, get) => ({
   totalEarned: 0,
   miningRate: 0.125,
   runtime: '0h 0m 0s',
+  countdown: '24h 0m 0s',
   tokensPerSecond: 0.125 / 3600,
   isLoading: false,
 
@@ -73,38 +76,56 @@ export const useMiningStore = create<MiningState>((set, get) => ({
   monthlyEarnings: 0,
 
       // Actions
-      startMining: () => {
+      startMining: async () => {
         const state = get();
         if (!state.isMining) {
-          miningService.startMining();
-          set({ isMining: true });
+          try {
+            set({ isLoading: true });
+            await miningService.startMining();
+            set({ isMining: true, isLoading: false });
+          } catch (error) {
+            console.error('Failed to start mining:', error);
+            set({ isLoading: false });
+            throw error;
+          }
         }
       },
 
-      stopMining: () => {
+      stopMining: async () => {
         const state = get();
         if (state.isMining) {
-          // Create session record
-          const session: MiningSession = {
-            id: Date.now().toString(),
-            startTime: Date.now() - (state.totalEarned / state.tokensPerSecond * 1000),
-            endTime: Date.now(),
-            totalEarned: state.totalEarned,
-            duration: state.totalEarned / state.tokensPerSecond * 1000,
-            miningRate: state.miningRate,
-          };
+          try {
+            set({ isLoading: true });
 
-          miningService.stopMining();
-          
-          set((state) => ({
-            isMining: false,
-            sessions: [...state.sessions, session],
-            totalLifetimeEarnings: state.totalLifetimeEarnings + state.totalEarned,
-            totalMiningTime: state.totalMiningTime + session.duration,
-          }));
+            // Create session record before stopping
+            const session: MiningSession = {
+              id: Date.now().toString(),
+              startTime: Date.now() - (state.totalEarned / state.tokensPerSecond * 1000),
+              endTime: Date.now(),
+              totalEarned: state.totalEarned,
+              duration: state.totalEarned / state.tokensPerSecond * 1000,
+              miningRate: state.miningRate,
+            };
 
-          // Recalculate statistics
-          get().calculateStatistics();
+            // Stop mining on backend
+            await miningService.stopMining();
+
+            set((state) => ({
+              isMining: false,
+              isLoading: false,
+              sessions: [...state.sessions, session],
+              totalLifetimeEarnings: state.totalLifetimeEarnings + state.totalEarned,
+              totalMiningTime: state.totalMiningTime + session.duration,
+              totalEarned: 0, // Reset for next session
+            }));
+
+            // Recalculate statistics
+            get().calculateStatistics();
+          } catch (error) {
+            console.error('Failed to stop mining:', error);
+            set({ isLoading: false });
+            throw error;
+          }
         }
       },
 
@@ -119,6 +140,10 @@ export const useMiningStore = create<MiningState>((set, get) => ({
 
       updateRuntime: (runtime: string) => {
         set({ runtime });
+      },
+
+      updateCountdown: (countdown: string) => {
+        set({ countdown });
       },
 
       updateMiningState: (isMining: boolean) => {
@@ -142,11 +167,67 @@ export const useMiningStore = create<MiningState>((set, get) => ({
         miningService.updateMiningRate(rate);
       },
 
+      refreshMiningStatus: async () => {
+        try {
+          console.log('Mining Store: Refreshing mining status...');
+          // This will check for existing sessions and restore state
+          await get().initializeWithSession();
+        } catch (error) {
+          console.error('Mining Store: Failed to refresh mining status:', error);
+        }
+      },
+
       resetBalance: (balance = 24.3564) => {
         set({
           currentBalance: balance,
           totalEarned: 0,
         });
+      },
+
+      // Initialize mining store with existing session data
+      initializeWithSession: async () => {
+        try {
+          console.log('Mining Store: Initializing with existing session...');
+          set({ isLoading: true });
+
+          // Check for existing session
+          await miningService.checkExistingSession();
+          const miningState = miningService.getState();
+
+          console.log('Mining Store: State from service:', miningState);
+
+          // Update store with restored session data
+          set({
+            isMining: miningState.isMining,
+            totalEarned: miningState.totalEarned,
+            runtime: miningState.runtime,
+            countdown: miningState.countdown,
+            miningRate: miningState.miningRate,
+            tokensPerSecond: miningState.tokensPerSecond,
+            isLoading: false,
+          });
+
+          console.log('Mining Store: Initialized successfully:', {
+            isMining: miningState.isMining,
+            totalEarned: miningState.totalEarned,
+            runtime: miningState.runtime
+          });
+        } catch (error) {
+          console.error('Mining Store: Failed to initialize:', error);
+          set({
+            isLoading: false,
+            // Set safe default values on error
+            isMining: false,
+            totalEarned: 0,
+            runtime: '0h 0m 0s',
+            countdown: '24h 0m 0s',
+            miningRate: 0.125,
+            tokensPerSecond: 0.125 / 3600,
+          });
+
+          // Don't throw the error, just log it
+          console.warn('Mining Store: Continuing with default values due to initialization error');
+        }
       },
 
       calculateStatistics: () => {

@@ -16,6 +16,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuthStore } from '@/stores/authStore';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import { validateLoginForm, formatValidationErrors } from '@/utils/validation';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface LoginScreenProps {
   onSwitchToRegister: () => void;
@@ -25,23 +28,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToRegister }) 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const { signIn, error, clearError } = useAuthStore();
+  const themeColors = useThemeColors();
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter both email and password');
+    // Clear previous validation errors
+    setValidationErrors([]);
+    clearError();
+
+    // Frontend validation
+    const validation = validateLoginForm(email, password);
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      Alert.alert('Validation Error', formatValidationErrors(validation.errors));
       return;
     }
 
     setIsLoading(true);
-    clearError();
 
     try {
       await signIn(email.trim(), password);
       // Navigation will be handled by the auth state change
     } catch (error) {
-      Alert.alert('Login Failed', error instanceof Error ? error.message : 'Please try again');
+      // Backend errors (like incorrect password) will be handled by the auth store
+      // and displayed through the error state
+      const errorMessage = error instanceof Error ? error.message : 'Login failed. Please try again.';
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -62,13 +76,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToRegister }) 
 
           {/* Form */}
           <View style={styles.form}>
+            {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={[styles.label, { color: themeColors.text.primary }]}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    color: themeColors.text.primary,
+                    backgroundColor: themeColors.background.secondary,
+                    borderColor: themeColors.border.primary,
+                  }
+                ]}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Enter your email"
+                placeholderTextColor={themeColors.text.tertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -76,23 +99,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToRegister }) 
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
+            {/* Password Input with Visibility Toggle */}
+            <PasswordInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Enter your password"
+              editable={!isLoading}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
 
+            {/* Validation Errors */}
+            {validationErrors.length > 0 && (
+              <View style={styles.errorContainer}>
+                {validationErrors.map((error, index) => (
+                  <Text key={index} style={[styles.errorText, { color: themeColors.status.error }]}>
+                    • {error}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Backend Errors */}
             {error && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={[styles.errorText, { color: themeColors.status.error }]}>{error}</Text>
               </View>
             )}
 

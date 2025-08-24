@@ -3,7 +3,7 @@
  * Custom hook for mining functionality
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useMiningStore } from '@/stores/miningStore';
 import { useWalletStore } from '@/stores/walletStore';
@@ -22,20 +22,43 @@ export const useMining = () => {
     isMining,
     totalEarned,
     runtime,
+    countdown,
     miningRate,
     startMining,
     stopMining,
     updateBalance,
     updateEarnings,
     updateRuntime,
+    updateCountdown,
     updateMiningState,
   } = useMiningStore();
 
   // Wallet state for unified balance
   const { totalBalance } = useWalletStore();
 
-  // Timer countdown state
-  const [timeRemaining, setTimeRemaining] = useState(1 * 60 * 60); // 1 hour in seconds
+  // Convert countdown string to seconds for MiningButton component
+  const timeRemaining = React.useMemo(() => {
+    if (!countdown || countdown === '0h 0m 0s') return 0;
+
+    // Parse countdown string "Xh Ym Zs" to seconds
+    const match = countdown.match(/(\d+)h (\d+)m (\d+)s/);
+    if (match) {
+      const hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const seconds = parseInt(match[3], 10);
+
+      // Check for NaN values
+      if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+        console.warn('Mining Hook: Invalid countdown values:', { countdown, hours, minutes, seconds });
+        return 0;
+      }
+
+      return hours * 3600 + minutes * 60 + seconds;
+    }
+
+    console.warn('Mining Hook: Could not parse countdown:', countdown);
+    return 0;
+  }, [countdown]);
 
   // Animation values
   const miningButtonScale = useSharedValue(1);
@@ -43,19 +66,37 @@ export const useMining = () => {
   const timerScale = useSharedValue(0.8);
   const statusIndicatorOpacity = useSharedValue(1);
 
-  // Initialize miningService callbacks
+  // Initialize miningService callbacks and check for existing session
   useEffect(() => {
     miningService.setCallbacks({
       onEarningsUpdate: updateEarnings,
       onRuntimeUpdate: updateRuntime,
+      onCountdownUpdate: updateCountdown,
       onMiningStateChange: updateMiningState,
     });
+
+    // Check for existing mining session on app startup
+    const initializeMining = async () => {
+      try {
+        console.log('useMining: Initializing mining on component mount...');
+
+        // Initialize wallet and mining together
+        // This will restore any active session from backend and sync wallet balance
+        await useMiningStore.getState().initializeWithSession();
+
+        console.log('useMining: Mining initialization complete');
+      } catch (error) {
+        console.error('useMining: Failed to initialize mining:', error);
+      }
+    };
+
+    initializeMining();
 
     // Cleanup on unmount
     return () => {
       miningService.cleanup();
     };
-  }, [updateEarnings, updateRuntime, updateMiningState]);
+  }, [updateEarnings, updateRuntime, updateCountdown, updateMiningState]);
 
   // Handle mining state changes and animations
   useEffect(() => {
@@ -84,23 +125,8 @@ export const useMining = () => {
         false
       );
 
-      // Start mining using the service
-      miningService.startMining();
-
-      // Countdown timer for session duration
-      const countdownTimer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
-            miningService.stopMining();
-            return 1 * 60 * 60; // Reset to 1 hour
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => {
-        clearInterval(countdownTimer);
-      };
+      // Mining is now handled by the service with backend sync
+      // No need for local countdown timer - using backend-synced countdown
     } else {
       miningButtonScale.value = withTiming(1);
       timerOpacity.value = withTiming(0, { duration: 300 });
@@ -111,10 +137,15 @@ export const useMining = () => {
   }, [isMining, miningRate]);
 
   // Handle mining toggle
-  const handleMiningToggle = () => {
+  const handleMiningToggle = async () => {
     // Only allow starting mining, not stopping it
     if (!isMining) {
-      startMining();
+      try {
+        await startMining();
+      } catch (error) {
+        console.error('Failed to start mining:', error);
+        // TODO: Show error message to user
+      }
     }
   };
 
@@ -129,9 +160,14 @@ export const useMining = () => {
 
   // Refresh mining data
   const refreshMiningData = async () => {
-    // In a real app, this would fetch fresh data from the server
-    // For now, we'll simulate a refresh
-    return new Promise<void>(resolve => setTimeout(resolve, 1500));
+    try {
+      console.log('useMining: Refreshing mining data...');
+      // Refresh mining status from the store
+      await useMiningStore.getState().refreshMiningStatus();
+      console.log('useMining: Mining data refreshed successfully');
+    } catch (error) {
+      console.error('useMining: Failed to refresh mining data:', error);
+    }
   };
 
   // Calculate derived values
@@ -143,6 +179,7 @@ export const useMining = () => {
     totalBalance,
     totalEarned,
     runtime,
+    countdown,
     miningRate,
     timeRemaining,
     tokensPerSecond,

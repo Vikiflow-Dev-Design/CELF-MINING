@@ -1,20 +1,52 @@
-const supabaseService = require('../services/supabaseService');
+const mobileMiningService = require('../services/mobileMiningService');
 const { createResponse } = require('../utils/responseUtils');
 
 class MiningController {
+  /**
+   * Get current mining status for user
+   */
   async getMiningStatus(req, res, next) {
     try {
-      // Return mock mining status
-      const mockStatus = {
-        isActive: false,
-        currentRate: 1.5,
-        tokensEarned: 0,
-        runtime: 0,
-        status: 'stopped'
+      const userId = req.user.userId;
+      console.log('Getting mining status for user:', userId);
+
+      // Use service method directly (more reliable than RPC for now)
+      const currentSession = await mobileMiningService.getCurrentSession(userId);
+
+      if (!currentSession) {
+        console.log('No active mining session found');
+        return res.json(createResponse(true, 'No active mining session', {
+          isActive: false,
+          currentRate: 0.125,
+          tokensEarned: 0,
+          runtime: 0,
+          status: 'stopped',
+          serverTime: new Date()
+        }));
+      }
+
+      console.log('Found active session:', currentSession);
+
+      // Calculate runtime in seconds
+      const runtimeMs = new Date() - new Date(currentSession.startTime);
+      const runtimeSeconds = Math.floor(runtimeMs / 1000);
+
+      const status = {
+        isActive: true,
+        currentRate: currentSession.miningRate,
+        tokensEarned: currentSession.currentEarnings,
+        runtime: runtimeSeconds,
+        status: 'active',
+        sessionId: currentSession.sessionId,
+        remainingTimeMs: currentSession.remainingTimeMs,
+        progress: currentSession.progress,
+        serverTime: currentSession.serverTime
       };
 
-      res.json(createResponse(true, 'Mining status retrieved successfully', mockStatus));
+      console.log('Returning mining status:', status);
+      res.json(createResponse(true, 'Mining status retrieved successfully', status));
     } catch (error) {
+      console.error('Error getting mining status:', error);
       next(error);
     }
   }
@@ -55,102 +87,184 @@ class MiningController {
     }
   }
 
+  /**
+   * Start a new mining session
+   */
   async startMining(req, res, next) {
     try {
-      const mockSession = {
-        id: 'new-session-id',
-        status: 'active',
-        mining_rate: req.body.miningRate || 1.5,
-        tokens_earned: 0,
-        runtime_seconds: 0,
-        started_at: new Date().toISOString()
-      };
+      const userId = req.user.userId;
+      const deviceInfo = req.body.deviceInfo || {};
 
-      res.json(createResponse(true, 'Mining started successfully', { session: mockSession }));
+      // Validate mining rate (should be fixed)
+      const requestedRate = req.body.miningRate;
+      if (requestedRate && requestedRate !== 0.125) {
+        return res.status(400).json(createResponse(false, 'Invalid mining rate. Rate is fixed at 0.125 CELF/hour'));
+      }
+
+      const sessionData = await mobileMiningService.startMiningSession(userId, deviceInfo);
+
+      res.json(createResponse(true, 'Mining started successfully', {
+        session: {
+          sessionId: sessionData.sessionId,
+          status: 'active',
+          miningRate: sessionData.miningRate,
+          tokensEarned: 0,
+          runtimeSeconds: 0,
+          startedAt: sessionData.startTime,
+          maxDurationMs: sessionData.maxDurationMs,
+          serverTime: sessionData.serverTime
+        }
+      }));
     } catch (error) {
+      console.error('Error starting mining:', error);
+      if (error.message.includes('already has an active')) {
+        return res.status(400).json(createResponse(false, error.message));
+      }
       next(error);
     }
   }
 
+  /**
+   * Stop/Complete a mining session
+   */
   async stopMining(req, res, next) {
     try {
-      const mockSession = {
-        id: 'current-session-id',
-        status: 'completed',
-        tokens_earned: 5.25,
-        runtime_seconds: 1800,
-        completed_at: new Date().toISOString()
-      };
+      const userId = req.user.userId;
+      const { sessionId, clientData } = req.body;
 
-      res.json(createResponse(true, 'Mining stopped successfully', { session: mockSession }));
+      // Get current session if sessionId not provided
+      let targetSessionId = sessionId;
+      if (!targetSessionId) {
+        const currentSession = await mobileMiningService.getCurrentSession(userId);
+        if (!currentSession) {
+          return res.status(400).json(createResponse(false, 'No active mining session found'));
+        }
+        targetSessionId = currentSession.sessionId;
+      }
+
+      const completionResult = await mobileMiningService.completeMiningSession(targetSessionId, clientData);
+
+      res.json(createResponse(true, 'Mining stopped successfully', {
+        session: {
+          sessionId: completionResult.sessionId,
+          status: 'completed',
+          tokensEarned: completionResult.finalEarnings,
+          runtimeMs: completionResult.actualDurationMs,
+          completedAt: completionResult.completedAt,
+          transactionId: completionResult.transactionId,
+          newWalletBalance: completionResult.newWalletBalance
+        }
+      }));
     } catch (error) {
+      console.error('Error stopping mining:', error);
+      if (error.message.includes('not found') || error.message.includes('not active')) {
+        return res.status(400).json(createResponse(false, error.message));
+      }
       next(error);
     }
   }
 
+  /**
+   * Cancel a mining session
+   */
+  async cancelMining(req, res, next) {
+    try {
+      const userId = req.user.userId;
+      const { sessionId } = req.body;
+
+      // Get current session if sessionId not provided
+      let targetSessionId = sessionId;
+      if (!targetSessionId) {
+        const currentSession = await mobileMiningService.getCurrentSession(userId);
+        if (!currentSession) {
+          return res.status(400).json(createResponse(false, 'No active mining session found'));
+        }
+        targetSessionId = currentSession.sessionId;
+      }
+
+      const cancellationResult = await mobileMiningService.cancelMiningSession(targetSessionId);
+
+      res.json(createResponse(true, 'Mining cancelled successfully', {
+        session: {
+          sessionId: cancellationResult.sessionId,
+          status: cancellationResult.status,
+          tokensEarned: cancellationResult.finalEarnings,
+          cancelledAt: cancellationResult.cancelledAt
+        }
+      }));
+    } catch (error) {
+      console.error('Error cancelling mining:', error);
+      if (error.message.includes('not found') || error.message.includes('not active')) {
+        return res.status(400).json(createResponse(false, error.message));
+      }
+      next(error);
+    }
+  }
+
+  /**
+   * Pause mining (not supported in mobile app - sessions run for 24 hours)
+   */
   async pauseMining(req, res, next) {
     try {
-      const mockSession = {
-        id: 'current-session-id',
-        status: 'paused',
-        tokens_earned: 2.5,
-        runtime_seconds: 900,
-        paused_at: new Date().toISOString()
-      };
-
-      res.json(createResponse(true, 'Mining paused successfully', { session: mockSession }));
+      res.status(400).json(createResponse(false, 'Pause/Resume not supported in mobile mining. Sessions run for 24 hours.'));
     } catch (error) {
       next(error);
     }
   }
 
+  /**
+   * Resume mining (not supported in mobile app - sessions run for 24 hours)
+   */
   async resumeMining(req, res, next) {
     try {
-      const mockSession = {
-        id: 'current-session-id',
-        status: 'active',
-        tokens_earned: 2.5,
-        runtime_seconds: 900,
-        resumed_at: new Date().toISOString()
-      };
-
-      res.json(createResponse(true, 'Mining resumed successfully', { session: mockSession }));
+      res.status(400).json(createResponse(false, 'Pause/Resume not supported in mobile mining. Sessions run for 24 hours.'));
     } catch (error) {
       next(error);
     }
   }
 
-  // Missing methods from routes
+  /**
+   * Update mining progress (not needed for mobile app - server calculates everything)
+   */
   async updateMiningProgress(req, res, next) {
     try {
-      const { sessionId, tokensEarned, runtime } = req.body;
-
-      const mockUpdate = {
-        sessionId,
-        tokensEarned,
-        runtime,
-        updatedAt: new Date().toISOString()
-      };
-
-      res.json(createResponse(true, 'Mining progress updated successfully (mock)', mockUpdate));
+      res.status(400).json(createResponse(false, 'Progress updates not supported. Server calculates all progress automatically.'));
     } catch (error) {
       next(error);
     }
   }
 
+  /**
+   * Get current mining session
+   */
   async getCurrentSession(req, res, next) {
     try {
-      const mockCurrentSession = {
-        id: 'current-session-id',
+      const userId = req.user.userId;
+      const currentSession = await mobileMiningService.getCurrentSession(userId);
+
+      if (!currentSession) {
+        return res.json(createResponse(true, 'No active mining session', { session: null }));
+      }
+
+      // Calculate runtime in seconds
+      const runtimeMs = new Date() - new Date(currentSession.startTime);
+      const runtimeSeconds = Math.floor(runtimeMs / 1000);
+
+      const sessionData = {
+        sessionId: currentSession.sessionId,
         status: 'active',
-        tokens_earned: 3.75,
-        runtime_seconds: 1350,
-        mining_rate: 1.5,
-        started_at: new Date(Date.now() - 1350000).toISOString()
+        tokensEarned: currentSession.currentEarnings,
+        runtimeSeconds: runtimeSeconds,
+        miningRate: currentSession.miningRate,
+        startedAt: currentSession.startTime,
+        remainingTimeMs: currentSession.remainingTimeMs,
+        progress: currentSession.progress,
+        serverTime: currentSession.serverTime
       };
 
-      res.json(createResponse(true, 'Current session retrieved successfully (mock)', { session: mockCurrentSession }));
+      res.json(createResponse(true, 'Current session retrieved successfully', { session: sessionData }));
     } catch (error) {
+      console.error('Error getting current session:', error);
       next(error);
     }
   }
@@ -175,19 +289,27 @@ class MiningController {
     }
   }
 
+  /**
+   * Get user mining statistics
+   */
   async getUserMiningStats(req, res, next) {
     try {
-      const mockStats = {
-        totalSessions: 15,
-        totalTokensEarned: 245.75,
-        totalMiningTime: 54000, // seconds
-        averageSessionTime: 3600,
-        bestSession: { tokens: 35.2, duration: 4200 },
-        currentStreak: 5
+      const userId = req.user.userId;
+      const stats = await mobileMiningService.getUserMiningStats(userId);
+
+      // Convert milliseconds to seconds for API response
+      const responseStats = {
+        totalSessions: stats.totalSessions,
+        completedSessions: stats.completedSessions,
+        totalTokensEarned: stats.totalEarnings,
+        totalMiningTimeSeconds: Math.floor(stats.totalMiningTime / 1000),
+        averageSessionTimeSeconds: Math.floor(stats.averageSessionDuration / 1000),
+        lastMiningSession: stats.lastMiningSession
       };
 
-      res.json(createResponse(true, 'User mining stats retrieved successfully (mock)', { stats: mockStats }));
+      res.json(createResponse(true, 'User mining stats retrieved successfully', { stats: responseStats }));
     } catch (error) {
+      console.error('Error getting user mining stats:', error);
       next(error);
     }
   }
@@ -234,32 +356,7 @@ class MiningController {
     }
   }
 
-  async startMining(req, res, next) {
-    try {
-      const { id } = req.params;
-      const userId = req.user.userId;
 
-      const session = await MiningSession.findOne({ _id: id, userId });
-      if (!session) {
-        return res.status(404).json(createResponse(false, 'Mining session not found'));
-      }
-
-      if (session.status === 'active') {
-        return res.status(400).json(createResponse(false, 'Mining session is already active'));
-      }
-
-      // Start mining process
-      await startMiningProcess(session);
-
-      session.status = 'active';
-      session.startedAt = new Date();
-      await session.save();
-
-      res.json(createResponse(true, 'Mining started successfully', { session }));
-    } catch (error) {
-      next(error);
-    }
-  }
 
   async getMiningRate(req, res, next) {
     try {

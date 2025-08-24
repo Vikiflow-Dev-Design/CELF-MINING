@@ -21,6 +21,7 @@ const updateMiningProgressValidation = [
 router.get('/status', authenticate, miningController.getMiningStatus);
 router.post('/start', authenticate, startMiningValidation, validateRequest, miningController.startMining);
 router.post('/stop', authenticate, miningController.stopMining);
+router.post('/cancel', authenticate, miningController.cancelMining);
 router.post('/pause', authenticate, miningController.pauseMining);
 router.post('/resume', authenticate, miningController.resumeMining);
 

@@ -13,7 +13,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useAuthStore } from '@/stores/authStore';
 import { performDirectLogout } from '@/utils/logout';
-import { LogoutTester } from '@/components/debug/LogoutTester';
 import { Spacing, Layout } from '@/constants/design-tokens';
 import { router } from 'expo-router';
 
@@ -191,9 +190,6 @@ export default function SettingsScreen() {
           paddingBottom: 32,
         }}>
           
-          {/* Logout Tester - Remove after testing */}
-          <LogoutTester />
-
           {/* Settings Card */}
           <Card variant="default" style={{ marginBottom: Spacing['2xl'] }}>
             <Typography variant="h3" weight="semibold" style={{

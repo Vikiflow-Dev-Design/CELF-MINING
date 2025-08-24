@@ -8,6 +8,8 @@ import { Button } from "@/src/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useScrollDirection } from "@/src/hooks/useScrollDirection";
 import { useBodyScrollLock } from "@/src/hooks/useBodyScrollLock";
+import { useAuth } from "@/src/lib/auth-context";
+import { User, LogOut } from "lucide-react";
 
 const navigationItems = [
   {
@@ -65,6 +67,7 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const { isVisible, scrollY } = useScrollDirection();
+  const { user, isAuthenticated, logout, isLoading } = useAuth();
 
   // Lock body scroll when mobile menu is open
   useBodyScrollLock(isOpen);
@@ -72,6 +75,15 @@ export function Navbar() {
   const toggleMobile = () => setIsOpen(!isOpen);
   const closeMobile = () => {
     setIsOpen(false);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      closeMobile();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
     setActiveDropdown(null);
   };
 
@@ -167,12 +179,35 @@ export function Navbar() {
 
             {/* Desktop CTA Buttons */}
             <div className="hidden lg:flex items-center space-x-3">
-              <Button variant="ghost" asChild>
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button variant="primary" asChild>
-                <Link href="/signup">Get Started</Link>
-              </Button>
+              {isAuthenticated ? (
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2 text-sm text-gray-300">
+                    <User className="h-4 w-4" />
+                    <span>{user?.firstName}</span>
+                  </div>
+                  <Button variant="ghost" asChild>
+                    <Link href="/dashboard">Dashboard</Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={handleLogout}
+                    disabled={isLoading}
+                    className="flex items-center space-x-1"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button variant="ghost" asChild>
+                    <Link href="/auth/login">Login</Link>
+                  </Button>
+                  <Button variant="primary" asChild>
+                    <Link href="/auth/register">Get Started</Link>
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -226,16 +261,41 @@ export function Navbar() {
 
                 {/* Mobile CTA Buttons */}
                 <div className="mt-8 pt-6 border-t border-[#9EFF00]/20 space-y-4">
-                  <Button variant="ghost" className="w-full" asChild>
-                    <Link href="/login" onClick={closeMobile}>
-                      Login
-                    </Link>
-                  </Button>
-                  <Button variant="primary" className="w-full" asChild>
-                    <Link href="/signup" onClick={closeMobile}>
-                      Get Started
-                    </Link>
-                  </Button>
+                  {isAuthenticated ? (
+                    <>
+                      <div className="flex items-center space-x-2 text-gray-300 px-4 py-2">
+                        <User className="h-4 w-4" />
+                        <span>{user?.firstName} {user?.lastName}</span>
+                      </div>
+                      <Button variant="ghost" className="w-full" asChild>
+                        <Link href="/dashboard" onClick={closeMobile}>
+                          Dashboard
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full flex items-center justify-center space-x-2"
+                        onClick={handleLogout}
+                        disabled={isLoading}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Logout</span>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" className="w-full" asChild>
+                        <Link href="/auth/login" onClick={closeMobile}>
+                          Login
+                        </Link>
+                      </Button>
+                      <Button variant="primary" className="w-full" asChild>
+                        <Link href="/auth/register" onClick={closeMobile}>
+                          Get Started
+                        </Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

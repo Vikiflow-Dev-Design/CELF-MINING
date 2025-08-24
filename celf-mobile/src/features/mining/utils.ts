@@ -7,10 +7,21 @@
  * Format time remaining as HH:MM:SS
  */
 export const formatTime = (seconds: number): string => {
+  // Handle invalid inputs
+  if (!seconds || isNaN(seconds) || seconds < 0) {
+    return '00:00:00';
+  }
+
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const secs = Math.floor(seconds % 60);
+
+  // Ensure values are valid
+  const safeHours = isNaN(hours) ? 0 : Math.max(0, hours);
+  const safeMinutes = isNaN(minutes) ? 0 : Math.max(0, Math.min(59, minutes));
+  const safeSecs = isNaN(secs) ? 0 : Math.max(0, Math.min(59, secs));
+
+  return `${safeHours.toString().padStart(2, '0')}:${safeMinutes.toString().padStart(2, '0')}:${safeSecs.toString().padStart(2, '0')}`;
 };
 
 /**

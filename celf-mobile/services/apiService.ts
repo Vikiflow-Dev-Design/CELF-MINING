@@ -257,16 +257,27 @@ class ApiService {
     return this.request('/mining/status');
   }
 
-  async startMining(miningRate?: number): Promise<ApiResponse> {
+  async startMining(miningRate?: number, deviceInfo?: any): Promise<ApiResponse> {
     return this.request('/mining/start', {
       method: 'POST',
-      body: JSON.stringify({ miningRate }),
+      body: JSON.stringify({
+        miningRate: miningRate || 0.125,
+        deviceInfo
+      }),
     });
   }
 
-  async stopMining(): Promise<ApiResponse> {
+  async stopMining(sessionId?: string, clientData?: any): Promise<ApiResponse> {
     return this.request('/mining/stop', {
       method: 'POST',
+      body: JSON.stringify({ sessionId, clientData }),
+    });
+  }
+
+  async cancelMining(sessionId?: string): Promise<ApiResponse> {
+    return this.request('/mining/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId }),
     });
   }
 

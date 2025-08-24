@@ -42,6 +42,16 @@ interface WalletState {
   availableBalance: number;
   pendingBalance: number;
 
+  // Mining integration for real-time balance updates
+  miningIntegration: {
+    baseBalance: number; // Last known balance from backend
+    currentSessionEarnings: number; // Current mining session earnings
+    displayBalance: number; // Base + session earnings (what user sees)
+    lastSyncTime: number; // When balance was last synced with backend
+    isMiningActive: boolean; // Whether mining is currently active
+    syncError: string | null; // Error message if sync fails
+  };
+
   // Addresses
   addresses: WalletAddress[];
   currentAddress: string;
@@ -71,6 +81,14 @@ interface WalletState {
   updateExchangeRate: (rate: number) => void;
   setCurrency: (currency: 'CELF' | 'USD') => void;
   getFormattedBalance: (amount: number) => string;
+
+  // Mining integration actions
+  initializeMiningBalance: (baseBalance: number) => void;
+  updateMiningEarnings: (earnings: number) => void;
+  startMiningSession: () => void;
+  endMiningSession: (finalBalance: number) => void;
+  syncBalanceWithBackend: () => Promise<void>;
+  clearSyncError: () => void;
 }
 
 export const useWalletStore = create<WalletState>((set, get) => ({
@@ -84,6 +102,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // Legacy fields for backward compatibility
       availableBalance: 0,
       pendingBalance: 0,
+
+      // Mining integration initial state
+      miningIntegration: {
+        baseBalance: 0,
+        currentSessionEarnings: 0,
+        displayBalance: 0,
+        lastSyncTime: 0,
+        isMiningActive: false,
+        syncError: null,
+      },
 
       addresses: [],
       currentAddress: '',
@@ -339,5 +367,115 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           return `$${(amount * state.exchangeRate).toFixed(2)}`;
         }
         return `${amount.toFixed(4)} CELF`;
+      },
+
+      // Mining integration actions
+      initializeMiningBalance: (baseBalance: number) => {
+        console.log('Wallet: Initializing mining balance with base:', baseBalance);
+        set((state) => ({
+          miningIntegration: {
+            ...state.miningIntegration,
+            baseBalance,
+            displayBalance: baseBalance,
+            lastSyncTime: Date.now(),
+            syncError: null,
+          },
+          totalBalance: baseBalance, // Update main balance display
+        }));
+      },
+
+      updateMiningEarnings: (earnings: number) => {
+        set((state) => {
+          const newDisplayBalance = state.miningIntegration.baseBalance + earnings;
+          return {
+            miningIntegration: {
+              ...state.miningIntegration,
+              currentSessionEarnings: earnings,
+              displayBalance: newDisplayBalance,
+            },
+            totalBalance: newDisplayBalance, // Update main balance display
+          };
+        });
+      },
+
+      startMiningSession: () => {
+        console.log('Wallet: Starting mining session');
+        set((state) => ({
+          miningIntegration: {
+            ...state.miningIntegration,
+            isMiningActive: true,
+            currentSessionEarnings: 0,
+            syncError: null,
+          },
+        }));
+      },
+
+      endMiningSession: (finalBalance: number) => {
+        console.log('Wallet: Ending mining session with final balance:', finalBalance);
+        set((state) => ({
+          miningIntegration: {
+            ...state.miningIntegration,
+            isMiningActive: false,
+            baseBalance: finalBalance,
+            currentSessionEarnings: 0,
+            displayBalance: finalBalance,
+            lastSyncTime: Date.now(),
+            syncError: null,
+          },
+          totalBalance: finalBalance, // Update main balance display
+        }));
+      },
+
+      syncBalanceWithBackend: async () => {
+        try {
+          console.log('Wallet: Syncing balance with backend...');
+          set((state) => ({
+            miningIntegration: {
+              ...state.miningIntegration,
+              syncError: null,
+            },
+            isLoadingBalance: true,
+          }));
+
+          // Fetch current balance from backend
+          const response = await apiService.getWalletBalance();
+          if (response.success && response.data) {
+            const backendBalance = response.data.totalBalance || response.data.total || 0;
+
+            console.log('Wallet: Backend balance received:', backendBalance);
+
+            set((state) => ({
+              miningIntegration: {
+                ...state.miningIntegration,
+                baseBalance: backendBalance,
+                displayBalance: backendBalance + state.miningIntegration.currentSessionEarnings,
+                lastSyncTime: Date.now(),
+                syncError: null,
+              },
+              totalBalance: backendBalance + state.miningIntegration.currentSessionEarnings,
+              isLoadingBalance: false,
+            }));
+          } else {
+            throw new Error(response.message || 'Failed to fetch balance');
+          }
+        } catch (error) {
+          console.error('Wallet: Failed to sync balance:', error);
+          set((state) => ({
+            miningIntegration: {
+              ...state.miningIntegration,
+              syncError: error instanceof Error ? error.message : 'Failed to sync balance',
+            },
+            isLoadingBalance: false,
+          }));
+        }
+      },
+
+      clearSyncError: () => {
+        set((state) => ({
+          miningIntegration: {
+            ...state.miningIntegration,
+            syncError: null,
+          },
+        }));
       },
     }));

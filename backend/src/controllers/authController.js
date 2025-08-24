@@ -4,13 +4,20 @@ const config = require('../config/config');
 const supabaseService = require('../services/supabaseService');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../utils/tokenUtils');
 const { createResponse } = require('../utils/responseUtils');
+const {
+  validateRegistrationForm,
+  validateLoginForm,
+  sanitizeRegistrationData,
+  sanitizeLoginData,
+  formatValidationErrors,
+  checkForSQLInjection
+} = require('../utils/validation');
 
 class AuthController {
   async register(req, res, next) {
     try {
       console.log('📥 Registration request received');
       console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
-      console.log('📋 Request headers:', JSON.stringify(req.headers, null, 2));
 
       const { email, password, firstName, lastName } = req.body;
 
@@ -20,22 +27,56 @@ class AuthController {
       console.log('  - firstName:', firstName);
       console.log('  - lastName:', lastName);
 
+      // Sanitize input data
+      const sanitizedData = sanitizeRegistrationData({ email, password, firstName, lastName });
+      console.log('🧹 Sanitized data:', { ...sanitizedData, password: '[SANITIZED]' });
+
+      // Check for SQL injection attempts
+      const fieldsToCheck = [sanitizedData.email, sanitizedData.firstName, sanitizedData.lastName];
+      for (const field of fieldsToCheck) {
+        if (checkForSQLInjection(field)) {
+          console.log('🚨 SQL injection attempt detected');
+          return res.status(400).json(createResponse(false, 'Invalid input detected'));
+        }
+      }
+
+      // Comprehensive validation
+      const validation = validateRegistrationForm(
+        sanitizedData.firstName,
+        sanitizedData.lastName,
+        sanitizedData.email,
+        sanitizedData.password
+      );
+
+      if (!validation.isValid) {
+        console.log('❌ Validation failed:', validation.errors);
+        return res.status(400).json(createResponse(
+          false,
+          formatValidationErrors(validation.errors),
+          { validationErrors: validation.errors }
+        ));
+      }
+
+      console.log('✅ Validation passed');
+
       // Check if user already exists
-      const existingUser = await supabaseService.findUserByEmail(email);
+      const existingUser = await supabaseService.findUserByEmail(sanitizedData.email);
       if (existingUser) {
+        console.log('❌ User already exists with email:', sanitizedData.email);
         return res.status(400).json(createResponse(false, 'User already exists with this email'));
       }
 
       // Hash password
       const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      const hashedPassword = await bcrypt.hash(sanitizedData.password, saltRounds);
+      console.log('🔐 Password hashed successfully');
 
       // Create user in database
       const userData = {
-        email,
+        email: sanitizedData.email,
         password: hashedPassword,
-        first_name: firstName,
-        last_name: lastName,
+        first_name: sanitizedData.firstName,
+        last_name: sanitizedData.lastName,
         role: 'user',
         is_active: true
       };
@@ -45,7 +86,7 @@ class AuthController {
       // Create wallet for the user
       const walletData = {
         user_id: user.id,
-        sendable_balance: 5.0000, // Initial bonus
+        sendable_balance: 0, // No registration bonus
         non_sendable_balance: 0,
         pending_balance: 0,
         current_address: `celf${Math.random().toString(36).substr(2, 40)}`,
@@ -74,18 +115,45 @@ class AuthController {
 
   async login(req, res, next) {
     try {
+      console.log('📥 Login request received');
       const { email, password } = req.body;
 
+      console.log('📝 Login attempt for email:', email);
+
+      // Sanitize input data
+      const sanitizedData = sanitizeLoginData({ email, password });
+
+      // Check for SQL injection attempts
+      if (checkForSQLInjection(sanitizedData.email)) {
+        console.log('🚨 SQL injection attempt detected in login');
+        return res.status(400).json(createResponse(false, 'Invalid input detected'));
+      }
+
+      // Comprehensive validation
+      const validation = validateLoginForm(sanitizedData.email, sanitizedData.password);
+      if (!validation.isValid) {
+        console.log('❌ Login validation failed:', validation.errors);
+        return res.status(400).json(createResponse(
+          false,
+          formatValidationErrors(validation.errors),
+          { validationErrors: validation.errors }
+        ));
+      }
+
+      console.log('✅ Login validation passed');
+
       // Find user by email
-      const user = await supabaseService.findUserByEmail(email);
+      const user = await supabaseService.findUserByEmail(sanitizedData.email);
       if (!user) {
-        return res.status(401).json(createResponse(false, 'Invalid credentials'));
+        console.log('❌ User not found for email:', sanitizedData.email);
+        return res.status(401).json(createResponse(false, 'Invalid email or password'));
       }
 
       // Check password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+      const isPasswordValid = await bcrypt.compare(sanitizedData.password, user.password);
       if (!isPasswordValid) {
-        return res.status(401).json(createResponse(false, 'Invalid credentials'));
+        console.log('❌ Invalid password for user:', sanitizedData.email);
+        return res.status(401).json(createResponse(false, 'Invalid email or password'));
       }
 
       // Check if user is active

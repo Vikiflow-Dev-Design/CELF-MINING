@@ -16,6 +16,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { useAuthStore } from '@/stores/authStore';
+import { PasswordInput } from '@/components/ui/PasswordInput';
+import { validateRegistrationForm, formatValidationErrors } from '@/utils/validation';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface RegisterScreenProps {
   onSwitchToLogin: () => void;
@@ -28,23 +31,21 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const { signUp, error, clearError } = useAuthStore();
+  const themeColors = useThemeColors();
 
   const handleRegister = async () => {
-    // Validation
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+    // Clear previous validation errors
+    setValidationErrors([]);
+    clearError();
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+    // Frontend validation
+    const validation = validateRegistrationForm(firstName, lastName, email, password, confirmPassword);
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      Alert.alert('Validation Error', formatValidationErrors(validation.errors));
       return;
     }
 
@@ -80,14 +81,23 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin 
 
           {/* Form */}
           <View style={styles.form}>
+            {/* Name Fields Row */}
             <View style={styles.row}>
               <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>First Name</Text>
+                <Text style={[styles.label, { color: themeColors.text.primary }]}>First Name</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      color: themeColors.text.primary,
+                      backgroundColor: themeColors.background.secondary,
+                      borderColor: themeColors.border.primary,
+                    }
+                  ]}
                   value={firstName}
                   onChangeText={setFirstName}
                   placeholder="First name"
+                  placeholderTextColor={themeColors.text.tertiary}
                   autoCapitalize="words"
                   autoCorrect={false}
                   editable={!isLoading}
@@ -95,12 +105,20 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin 
               </View>
 
               <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>Last Name</Text>
+                <Text style={[styles.label, { color: themeColors.text.primary }]}>Last Name</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      color: themeColors.text.primary,
+                      backgroundColor: themeColors.background.secondary,
+                      borderColor: themeColors.border.primary,
+                    }
+                  ]}
                   value={lastName}
                   onChangeText={setLastName}
                   placeholder="Last name"
+                  placeholderTextColor={themeColors.text.tertiary}
                   autoCapitalize="words"
                   autoCorrect={false}
                   editable={!isLoading}
@@ -108,13 +126,22 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin 
               </View>
             </View>
 
+            {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={[styles.label, { color: themeColors.text.primary }]}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    color: themeColors.text.primary,
+                    backgroundColor: themeColors.background.secondary,
+                    borderColor: themeColors.border.primary,
+                  }
+                ]}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="Enter your email"
+                placeholderTextColor={themeColors.text.tertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -122,37 +149,44 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin 
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Create a password"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
+            {/* Password Input with Strength Indicator */}
+            <PasswordInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Create a password"
+              showStrengthIndicator={true}
+              editable={!isLoading}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <TextInput
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Confirm your password"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isLoading}
-              />
-            </View>
+            {/* Confirm Password Input */}
+            <PasswordInput
+              label="Confirm Password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm your password"
+              editable={!isLoading}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
 
+            {/* Validation Errors */}
+            {validationErrors.length > 0 && (
+              <View style={styles.errorContainer}>
+                {validationErrors.map((error, index) => (
+                  <Text key={index} style={[styles.errorText, { color: themeColors.status.error }]}>
+                    • {error}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Backend Errors */}
             {error && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={[styles.errorText, { color: themeColors.status.error }]}>{error}</Text>
               </View>
             )}
 
