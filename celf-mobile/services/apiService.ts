@@ -257,12 +257,11 @@ class ApiService {
     return this.request('/mining/status');
   }
 
-  async startMining(miningRate?: number, deviceInfo?: any): Promise<ApiResponse> {
+  async startMining(deviceInfo?: any): Promise<ApiResponse> {
     return this.request('/mining/start', {
       method: 'POST',
       body: JSON.stringify({
-        miningRate: miningRate || 0.125,
-        deviceInfo
+        deviceInfo: deviceInfo || {}
       }),
     });
   }
@@ -295,6 +294,26 @@ class ApiService {
 
   async getMiningSessions(page = 1, limit = 10): Promise<ApiResponse> {
     return this.request(`/mining/sessions?page=${page}&limit=${limit}`);
+  }
+
+  async getMiningRate(): Promise<ApiResponse<{
+    rate: {
+      currentRate: number;
+      baseRate: number;
+      speedMultiplier: number;
+      rewardMultiplier: number;
+      maxSessionTime: number;
+      maintenanceMode: boolean;
+      minTokensToMine: number;
+      maxTokensPerSession: number;
+      cooldownPeriod: number;
+      dailyLimit: number;
+      referralBonus: number;
+      autoClaim: boolean;
+      notificationEnabled: boolean;
+    }
+  }>> {
+    return this.request('/mining/rate');
   }
 
   // Health check

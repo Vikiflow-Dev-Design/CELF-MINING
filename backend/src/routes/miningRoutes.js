@@ -8,7 +8,8 @@ const { validateRequest } = require('../middleware/validationMiddleware');
 
 // Validation rules for mobile app mining
 const startMiningValidation = [
-  body('miningRate').optional().isFloat({ min: 0.001, max: 10 }).withMessage('Mining rate must be between 0.001 and 10 CELF/hour')
+  body('miningRate').optional().isFloat({ min: 0.001, max: 1000 }).withMessage('Mining rate must be between 0.001 and 1000 CELF/hour'),
+  body('deviceInfo').optional().isObject().withMessage('Device info must be an object')
 ];
 
 const updateMiningProgressValidation = [
@@ -19,7 +20,7 @@ const updateMiningProgressValidation = [
 
 // Current mining session routes (for mobile app)
 router.get('/status', authenticate, miningController.getMiningStatus);
-router.post('/start', authenticate, startMiningValidation, validateRequest, miningController.startMining);
+router.post('/start', authenticate, miningController.startMining);
 router.post('/stop', authenticate, miningController.stopMining);
 router.post('/cancel', authenticate, miningController.cancelMining);
 router.post('/pause', authenticate, miningController.pauseMining);

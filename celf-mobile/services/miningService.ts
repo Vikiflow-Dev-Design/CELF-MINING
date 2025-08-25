@@ -36,6 +36,7 @@ export class MiningService {
   private callbacks: MiningCallbacks;
   private updateTimer: NodeJS.Timeout | null = null;
   private sessionEndTimer: NodeJS.Timeout | null = null;
+  private syncTimer: NodeJS.Timeout | null = null;
 
   constructor(miningRate: number = 0.125) {
     this.state = {
@@ -51,6 +52,49 @@ export class MiningService {
       remainingTimeMs: 24 * 60 * 60 * 1000,
       serverTime: null,
     };
+
+    // Fetch current admin mining rate on initialization
+    this.fetchCurrentMiningRate();
+  }
+
+  /**
+   * Fetch current mining rate from admin settings
+   */
+  async fetchCurrentMiningRate(): Promise<void> {
+    try {
+      console.log('Fetching current mining rate from admin settings...');
+      const response = await apiService.getMiningRate();
+
+      if (response.success && response.data?.rate) {
+        const { currentRate, maxSessionTime, maintenanceMode } = response.data.rate;
+
+        // Update mining rate and session duration
+        this.updateMiningRate(currentRate);
+        this.state.maxDurationMs = maxSessionTime * 1000; // Convert seconds to ms
+        this.state.remainingTimeMs = maxSessionTime * 1000;
+
+        // Update countdown display
+        this.state.countdown = this.formatRuntime(maxSessionTime * 1000);
+
+        console.log('Mining rate updated from admin settings:', {
+          rate: currentRate,
+          maxSessionTime: maxSessionTime,
+          maintenanceMode: maintenanceMode
+        });
+
+        // Check if mining is in maintenance mode
+        if (maintenanceMode && this.state.isMining) {
+          console.warn('Mining is in maintenance mode, stopping current session');
+          await this.stopMining();
+        }
+
+        // Notify callbacks of the update
+        this.callbacks.onMiningStateChange(this.state);
+      }
+    } catch (error) {
+      console.error('Failed to fetch mining rate from admin settings:', error);
+      // Continue with default rate if fetch fails
+    }
 
     this.callbacks = {
       onEarningsUpdate: () => {},
@@ -86,8 +130,8 @@ export class MiningService {
         appVersion: '1.0.0', // TODO: Get from app config
       };
 
-      // Start session on backend
-      const response = await apiService.startMining(this.state.miningRate);
+      // Start session on backend (rate is determined by admin settings)
+      const response = await apiService.startMining(deviceInfo);
       if (!response.success) {
         throw new Error(response.message || 'Failed to start mining session');
       }
@@ -114,6 +158,11 @@ export class MiningService {
       this.updateTimer = setInterval(() => {
         this.updateLocalProgress();
       }, 100);
+
+      // Start backend sync timer (every 30 seconds for authoritative data)
+      this.syncTimer = setInterval(() => {
+        this.syncWithBackend();
+      }, 30000);
 
       // Set timer for session end (24 hours)
       this.sessionEndTimer = setTimeout(() => {
@@ -142,8 +191,8 @@ export class MiningService {
     const elapsedHours = elapsedMs / (1000 * 60 * 60);
     const estimatedEarnings = elapsedHours * this.state.miningRate;
 
-    // Update earnings (but don't go below what we already had from server)
-    this.state.totalEarned = Math.max(this.state.totalEarned, estimatedEarnings);
+    // Update earnings (use server value if available, otherwise estimate)
+    this.state.totalEarned = estimatedEarnings;
     this.state.remainingTimeMs = Math.max(0, this.state.maxDurationMs - elapsedMs);
 
     // Update wallet store with estimated mining earnings for real-time balance display
@@ -161,6 +210,56 @@ export class MiningService {
     if (this.state.remainingTimeMs <= 0) {
       console.log('Local timer expired, completing session');
       this.completeSession();
+    }
+  }
+
+  /**
+   * Sync with backend to get authoritative session data
+   */
+  private async syncWithBackend(): Promise<void> {
+    if (!this.state.isMining) return;
+
+    try {
+      console.log('Syncing with backend for authoritative data...');
+      const response = await apiService.getMiningStatus();
+
+      if (response.success && response.data.isActive) {
+        const serverData = response.data;
+
+        // Update with server-authoritative data
+        if (serverData.tokensEarned !== undefined) {
+          this.state.totalEarned = serverData.tokensEarned;
+        }
+
+        if (serverData.runtime !== undefined) {
+          // Recalculate start time based on server runtime
+          const serverRuntimeMs = serverData.runtime * 1000;
+          this.state.startTime = Date.now() - serverRuntimeMs;
+        }
+
+        if (serverData.currentRate !== undefined) {
+          this.state.miningRate = serverData.currentRate;
+          this.state.tokensPerSecond = serverData.currentRate / 3600;
+        }
+
+        console.log('Backend sync completed:', {
+          tokensEarned: this.state.totalEarned,
+          runtime: serverData.runtime,
+          currentRate: this.state.miningRate
+        });
+
+        // Update wallet with server data
+        const walletStore = useWalletStore.getState();
+        walletStore.updateMiningEarnings(this.state.totalEarned);
+
+      } else if (response.success && !response.data.isActive) {
+        // Server says no active session, stop local mining
+        console.log('Server reports no active session, stopping local mining');
+        this.stopMining();
+      }
+    } catch (error) {
+      console.error('Failed to sync with backend:', error);
+      // Continue with local calculations if sync fails
     }
   }
 
@@ -310,6 +409,11 @@ export class MiningService {
       this.sessionEndTimer = null;
     }
 
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
+
     // Notify state change
     this.callbacks.onMiningStateChange(false);
     this.callbacks.onRuntimeUpdate(this.state.runtime);
@@ -335,13 +439,14 @@ export class MiningService {
 
         console.log('Found active session, restoring:', sessionData);
 
-        // Calculate start time from server data
+        // Calculate start time from server data (more accurate)
         let startTime: number;
-        if (sessionData.sessionId) {
-          // If we have runtime, calculate start time
-          const runtimeMs = (sessionData.runtime || 0) * 1000; // Convert seconds to ms
-          startTime = Date.now() - runtimeMs;
+        if (sessionData.runtime && sessionData.runtime > 0) {
+          // Use server runtime to calculate accurate start time
+          const serverRuntimeMs = sessionData.runtime * 1000; // Convert seconds to ms
+          startTime = Date.now() - serverRuntimeMs;
         } else {
+          // Fallback to current time if no runtime data
           startTime = Date.now();
         }
 
@@ -354,11 +459,15 @@ export class MiningService {
         this.state.serverTime = new Date(sessionData.serverTime || Date.now()).getTime();
         this.state.tokensPerSecond = this.state.miningRate / 3600;
 
-        // Calculate remaining time with fallback logic
-        if (sessionData.remainingTimeMs && !isNaN(sessionData.remainingTimeMs)) {
-          this.state.remainingTimeMs = sessionData.remainingTimeMs;
+        // Set max duration from server or use default
+        this.state.maxDurationMs = sessionData.maxDurationMs || (24 * 60 * 60 * 1000);
+
+        // Calculate remaining time more accurately
+        if (sessionData.runtime && sessionData.maxDurationMs) {
+          const elapsedMs = sessionData.runtime * 1000;
+          this.state.remainingTimeMs = Math.max(0, sessionData.maxDurationMs - elapsedMs);
         } else {
-          // Fallback: calculate from elapsed time
+          // Fallback calculation
           const elapsed = Date.now() - startTime;
           this.state.remainingTimeMs = Math.max(0, this.state.maxDurationMs - elapsed);
         }
@@ -378,6 +487,11 @@ export class MiningService {
         this.updateTimer = setInterval(() => {
           this.updateLocalProgress();
         }, 100);
+
+        // Start backend sync timer for restored session
+        this.syncTimer = setInterval(() => {
+          this.syncWithBackend();
+        }, 30000);
 
         // Set timer for remaining session time
         if (this.state.remainingTimeMs > 0) {
@@ -523,6 +637,11 @@ export class MiningService {
     if (this.sessionEndTimer) {
       clearTimeout(this.sessionEndTimer);
       this.sessionEndTimer = null;
+    }
+
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
     }
   }
 }

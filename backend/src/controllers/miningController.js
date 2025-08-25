@@ -15,9 +15,22 @@ class MiningController {
 
       if (!currentSession) {
         console.log('No active mining session found');
+
+        // Get current admin settings for default rate
+        const supabaseService = require('../services/supabaseService');
+        let defaultRate = 0.125;
+        try {
+          const adminSettings = await supabaseService.getMiningSettings();
+          defaultRate = (adminSettings.defaultMiningRate || 0.125) *
+                       (adminSettings.miningSpeed || 1.0) *
+                       (adminSettings.rewardMultiplier || 1.0);
+        } catch (error) {
+          console.error('Failed to get admin settings for default rate:', error);
+        }
+
         return res.json(createResponse(true, 'No active mining session', {
           isActive: false,
-          currentRate: 0.125,
+          currentRate: defaultRate,
           tokensEarned: 0,
           runtime: 0,
           status: 'stopped',
@@ -95,12 +108,11 @@ class MiningController {
       const userId = req.user.userId;
       const deviceInfo = req.body.deviceInfo || {};
 
-      // Validate mining rate (should be fixed)
-      const requestedRate = req.body.miningRate;
-      if (requestedRate && requestedRate !== 0.125) {
-        return res.status(400).json(createResponse(false, 'Invalid mining rate. Rate is fixed at 0.125 CELF/hour'));
-      }
+      console.log(`Starting mining session for user ${userId}`);
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
 
+      // Note: Mining rate is now determined by admin settings, not client request
+      // The mobile app may send a rate, but the backend will use admin-configured rates
       const sessionData = await mobileMiningService.startMiningSession(userId, deviceInfo);
 
       res.json(createResponse(true, 'Mining started successfully', {
@@ -360,19 +372,35 @@ class MiningController {
 
   async getMiningRate(req, res, next) {
     try {
-      const mockRate = {
-        currentRate: 1.5,
-        baseRate: 1.0,
-        bonusRate: 0.5,
-        factors: {
-          userLevel: 1.2,
-          streak: 1.1,
-          premium: 1.0
-        }
+      // Get admin mining settings
+      const supabaseService = require('../services/supabaseService');
+      const adminSettings = await supabaseService.getMiningSettings();
+
+      // Calculate effective mining rate
+      const baseRate = adminSettings.defaultMiningRate || 0.125;
+      const speedMultiplier = adminSettings.miningSpeed || 1.0;
+      const rewardMultiplier = adminSettings.rewardMultiplier || 1.0;
+      const effectiveRate = baseRate * speedMultiplier * rewardMultiplier;
+
+      const rateInfo = {
+        currentRate: effectiveRate,
+        baseRate: baseRate,
+        speedMultiplier: speedMultiplier,
+        rewardMultiplier: rewardMultiplier,
+        maxSessionTime: adminSettings.maxSessionTime || 86400, // seconds
+        maintenanceMode: adminSettings.maintenanceMode || false,
+        minTokensToMine: adminSettings.minTokensToMine || 0.01,
+        maxTokensPerSession: adminSettings.maxTokensPerSession || 100,
+        cooldownPeriod: adminSettings.cooldownPeriod || 0,
+        dailyLimit: adminSettings.dailyLimit || 1000,
+        referralBonus: adminSettings.referralBonus || 0.1,
+        autoClaim: adminSettings.autoClaim !== undefined ? adminSettings.autoClaim : true,
+        notificationEnabled: adminSettings.notificationEnabled !== undefined ? adminSettings.notificationEnabled : true
       };
 
-      res.json(createResponse(true, 'Mining rate retrieved successfully (mock)', { rate: mockRate }));
+      res.json(createResponse(true, 'Mining rate retrieved successfully', { rate: rateInfo }));
     } catch (error) {
+      console.error('Error getting mining rate:', error);
       next(error);
     }
   }

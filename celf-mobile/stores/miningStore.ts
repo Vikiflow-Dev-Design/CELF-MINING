@@ -190,6 +190,9 @@ export const useMiningStore = create<MiningState>((set, get) => ({
           console.log('Mining Store: Initializing with existing session...');
           set({ isLoading: true });
 
+          // Fetch current admin mining rate first
+          await miningService.fetchCurrentMiningRate();
+
           // Check for existing session
           await miningService.checkExistingSession();
           const miningState = miningService.getState();

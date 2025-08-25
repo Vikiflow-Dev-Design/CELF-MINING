@@ -3,9 +3,55 @@ const { v4: uuidv4 } = require('uuid');
 
 class MobileMiningService {
   constructor() {
-    this.FIXED_MINING_RATE = 0.125; // CELF per hour
-    this.MAX_SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+    // Default fallback values (will be overridden by admin settings)
+    this.DEFAULT_MINING_RATE = 0.125; // CELF per hour
+    this.DEFAULT_MAX_SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
     this.VALIDATION_TOLERANCE = 0.1; // 10% tolerance for network delays
+  }
+
+  /**
+   * Get current admin mining settings
+   */
+  async getAdminMiningSettings() {
+    try {
+      console.log('Fetching admin mining settings...');
+      const settings = await supabaseService.getMiningSettings();
+      console.log('Admin settings retrieved:', settings);
+
+      const adminSettings = {
+        miningRate: settings.defaultMiningRate || this.DEFAULT_MINING_RATE,
+        maxSessionTimeMs: (settings.maxSessionTime || 86400) * 1000, // Convert seconds to ms
+        miningSpeed: settings.miningSpeed || 1.0,
+        rewardMultiplier: settings.rewardMultiplier || 1.0,
+        maintenanceMode: settings.maintenanceMode || false,
+        minTokensToMine: settings.minTokensToMine || 0.01,
+        maxTokensPerSession: settings.maxTokensPerSession || 100,
+        cooldownPeriod: settings.cooldownPeriod || 0,
+        dailyLimit: settings.dailyLimit || 1000,
+        referralBonus: settings.referralBonus || 0.1,
+        autoClaim: settings.autoClaim !== undefined ? settings.autoClaim : true,
+        notificationEnabled: settings.notificationEnabled !== undefined ? settings.notificationEnabled : true
+      };
+
+      console.log('Processed admin settings:', adminSettings);
+      return adminSettings;
+    } catch (error) {
+      console.error('Failed to get admin mining settings, using defaults:', error);
+      console.log('Using default settings due to error');
+
+      const defaultSettings = {
+        miningRate: this.DEFAULT_MINING_RATE,
+        maxSessionTimeMs: this.DEFAULT_MAX_SESSION_DURATION_MS,
+        miningSpeed: 1.0,
+        rewardMultiplier: 1.0,
+        maintenanceMode: false,
+        minTokensToMine: 0.01,
+        maxTokensPerSession: 100
+      };
+
+      console.log('Default settings:', defaultSettings);
+      return defaultSettings;
+    }
   }
 
   /**
@@ -16,28 +62,38 @@ class MobileMiningService {
    */
   async startMiningSession(userId, deviceInfo = {}) {
     try {
+      // Get current admin settings
+      const adminSettings = await this.getAdminMiningSettings();
+
+      // Check if mining is in maintenance mode
+      if (adminSettings.maintenanceMode) {
+        throw new Error('Mining is currently in maintenance mode. Please try again later.');
+      }
+
       // Check if user already has an active session
       const existingSession = await supabaseService.findActiveMiningSession(userId);
 
       if (existingSession) {
-        // Check if existing session is expired (24+ hours old)
+        // Check if existing session is expired using admin-configured max time
         const sessionAge = new Date() - new Date(existingSession.started_at);
-        if (sessionAge >= this.MAX_SESSION_DURATION_MS) {
+        if (sessionAge >= adminSettings.maxSessionTimeMs) {
           await this.completeExpiredSession(existingSession.id);
         } else {
           throw new Error('User already has an active mining session');
         }
       }
 
-      // Create new session
+      // Create new session with admin-configured settings
       const sessionId = uuidv4();
+      const effectiveMiningRate = adminSettings.miningRate * adminSettings.miningSpeed * adminSettings.rewardMultiplier;
+
       const sessionData = {
         user_id: userId,
         session_id: sessionId,
         status: 'active',
-        mining_rate: this.FIXED_MINING_RATE,
-        max_duration_ms: this.MAX_SESSION_DURATION_MS,
-        remaining_time_ms: this.MAX_SESSION_DURATION_MS,
+        mining_rate: effectiveMiningRate,
+        max_duration_ms: adminSettings.maxSessionTimeMs,
+        remaining_time_ms: adminSettings.maxSessionTimeMs,
         started_at: new Date().toISOString(),
         device_info: {
           deviceId: deviceInfo.deviceId || 'unknown',
@@ -87,8 +143,18 @@ class MobileMiningService {
         throw new Error('Session is not active');
       }
 
+      // Get current admin settings for validation
+      const adminSettings = await this.getAdminMiningSettings();
+
       // Calculate server-side earnings (authoritative)
-      const serverEarnings = await this.calculateServerEarnings(session);
+      let serverEarnings = await this.calculateServerEarnings(session);
+
+      // Check if session exceeds admin-configured max tokens per session
+      if (serverEarnings > adminSettings.maxTokensPerSession) {
+        console.warn(`Session ${sessionId} exceeded max tokens per session: ${serverEarnings} > ${adminSettings.maxTokensPerSession}`);
+        // Cap the earnings to the maximum allowed
+        serverEarnings = adminSettings.maxTokensPerSession;
+      }
       const actualDurationMs = Math.min(
         new Date() - new Date(session.started_at),
         session.max_duration_ms

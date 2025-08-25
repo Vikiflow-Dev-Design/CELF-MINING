@@ -10,6 +10,7 @@ const contactRoutes = require('./contactRoutes');
 const newsletterRoutes = require('./newsletterRoutes');
 const mentorshipRoutes = require('./mentorshipRoutes');
 const scholarshipRoutes = require('./scholarshipRoutes');
+const adminRoutes = require('./adminRoutes');
 
 // API version and welcome message
 router.get('/', (req, res) => {
@@ -32,7 +33,9 @@ router.get('/', (req, res) => {
       contact: '/api/contact',
       newsletter: '/api/newsletter',
       mentorship: '/api/mentorship',
-      scholarship: '/api/scholarship'
+      scholarship: '/api/scholarship',
+      // Admin endpoints
+      admin: '/api/admin'
     }
   });
 });
@@ -48,5 +51,8 @@ router.use('/contact', contactRoutes);
 router.use('/newsletter', newsletterRoutes);
 router.use('/mentorship', mentorshipRoutes);
 router.use('/scholarship', scholarshipRoutes);
+
+// Admin routes
+router.use('/admin', adminRoutes);
 
 module.exports = router;
