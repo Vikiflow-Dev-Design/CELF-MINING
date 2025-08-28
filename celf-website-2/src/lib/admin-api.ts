@@ -70,15 +70,10 @@ export interface MiningSession {
 }
 
 export interface MiningSettings {
-  defaultMiningRate: number;
+  miningRatePerSecond: number;
+  miningIntervalMs: number;
   maxSessionTime: number;
-  miningSpeed: number;
-  rewardMultiplier: number;
   maintenanceMode: boolean;
-  minTokensToMine: number;
-  maxTokensPerSession: number;
-  cooldownPeriod: number;
-  dailyLimit: number;
   referralBonus: number;
   autoClaim: boolean;
   notificationEnabled: boolean;

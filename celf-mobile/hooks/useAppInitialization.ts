@@ -35,7 +35,12 @@ export const useAppInitialization = () => {
 
         // Load wallet balance
         console.log('💰 Loading wallet balance...');
-        await refreshBalance();
+        try {
+          await refreshBalance();
+          console.log('✅ App Init: Wallet balance loaded successfully');
+        } catch (error) {
+          console.error('❌ App Init: Failed to load wallet balance:', error);
+        }
 
         // Load mining status
         console.log('⛏️ Loading mining status...');

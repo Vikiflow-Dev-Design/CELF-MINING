@@ -17,6 +17,8 @@ export const useWallet = () => {
     refreshTransactions
   } = useWalletStore();
 
+
+
   const handleSendTokens = () => {
     router.push('/send-tokens');
   };
@@ -41,7 +43,7 @@ export const useWallet = () => {
         refreshTransactions()
       ]);
     } catch (error) {
-      console.error('Error refreshing wallet data:', error);
+      console.error('❌ useWallet: Error refreshing wallet data:', error);
       throw error;
     }
   };

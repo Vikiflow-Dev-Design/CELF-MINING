@@ -1,4 +1,4 @@
-const supabaseService = require('../services/supabaseService');
+const mongodbService = require('../services/mongodbService');
 const { createResponse } = require('../utils/responseUtils');
 
 class ClerkController {
@@ -60,32 +60,43 @@ class ClerkController {
       }
 
       // Create user in our database
-      const user = await supabaseService.createUser({
-        clerk_user_id: clerkUserId,
+      const user = await mongodbService.createUser({
+        clerk_userId: clerkUserId,
         email: primaryEmail.email_address,
-        first_name: first_name || '',
-        last_name: last_name || '',
-        profile_image_url: profile_image_url,
+        firstName: first_name || '',
+        lastName: last_name || '',
+        profileImageUrl: profile_image_url,
         is_email_verified: primaryEmail.verification?.status === 'verified',
         auth_provider: 'clerk'
       });
 
-      // Create wallet for the user
+      // Create wallet for the user with 10 CELF welcome bonus
       const walletAddress = `celf${Math.random().toString(36).substr(2, 40)}`;
-      const wallet = await supabaseService.createWallet({
-        user_id: user.id,
-        current_address: walletAddress,
+      const wallet = await mongodbService.createWallet({
+        userId: user.id,
+        currentAddress: walletAddress,
         addresses: JSON.stringify([{
           address: walletAddress,
           label: 'Main Wallet',
           isDefault: true
         }]),
-        sendable_balance: 0, // No registration bonus
-        non_sendable_balance: 0,
-        pending_balance: 0
+        sendableBalance: 0,
+        nonSendableBalance: 10, // 10 CELF welcome bonus for testing
+        pendingBalance: 0
       });
 
-      console.log(`User created: ${user.email} with wallet: ${wallet.current_address}`);
+      // Create a transaction record for the welcome bonus
+      const Transaction = require('../models/Transaction');
+      const welcomeTransaction = new Transaction({
+        toUserId: user.id,
+        amount: 10,
+        type: 'bonus',
+        status: 'completed',
+        description: 'Welcome bonus - 10 CELF tokens for testing'
+      });
+      await welcomeTransaction.save();
+
+      console.log(`User created: ${user.email} with wallet: ${wallet.currentAddress}`);
     } catch (error) {
       console.error('Error creating user from Clerk webhook:', error);
       throw error;
@@ -147,7 +158,7 @@ class ClerkController {
 
   async handleSessionCreated(sessionData) {
     try {
-      const { user_id: clerkUserId } = sessionData;
+      const { userId: clerkUserId } = sessionData;
       
       const user = await User.findOne({ clerkUserId });
       if (user) {
@@ -162,7 +173,7 @@ class ClerkController {
   async handleSessionEnded(sessionData) {
     try {
       // Handle session end if needed
-      console.log('Session ended for user:', sessionData.user_id);
+      console.log('Session ended for user:', sessionData.userId);
     } catch (error) {
       console.error('Error handling session ended:', error);
     }
@@ -187,7 +198,7 @@ class ClerkController {
 
         await user.save();
 
-        // Create wallet
+        // Create wallet with 10 CELF welcome bonus
         const wallet = new Wallet({
           userId: user._id,
           addresses: [{
@@ -195,15 +206,26 @@ class ClerkController {
             label: 'Main Wallet',
             isDefault: true
           }],
-          sendableBalance: 0, // No registration bonus
-          nonSendableBalance: 0,
+          sendableBalance: 0,
+          nonSendableBalance: 10, // 10 CELF welcome bonus for testing
           pendingBalance: 0
         });
 
         wallet.currentAddress = wallet.addresses[0].address;
         wallet.totalBalance = wallet.sendableBalance + wallet.nonSendableBalance + wallet.pendingBalance;
-        
+
         await wallet.save();
+
+        // Create a transaction record for the welcome bonus
+        const Transaction = require('../models/Transaction');
+        const welcomeTransaction = new Transaction({
+          toUserId: user._id,
+          amount: 10,
+          type: 'bonus',
+          status: 'completed',
+          description: 'Welcome bonus - 10 CELF tokens for testing'
+        });
+        await welcomeTransaction.save();
       } else {
         // Update existing user
         user.email = email;

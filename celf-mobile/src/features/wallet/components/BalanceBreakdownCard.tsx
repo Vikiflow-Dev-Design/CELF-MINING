@@ -16,6 +16,10 @@ export const BalanceBreakdownCard: React.FC = () => {
   const { balanceBreakdown, getFormattedBalance } = useWalletStore();
   const themeColors = useThemeColors();
 
+  // Check if user has any tokens to exchange
+  const hasTokensToExchange = balanceBreakdown.sendable > 0 || balanceBreakdown.nonSendable > 0;
+  const totalTokens = balanceBreakdown.sendable + balanceBreakdown.nonSendable;
+
   const handleOpenExchange = () => {
     router.push('/(app)/exchange');
   };
@@ -183,43 +187,57 @@ export const BalanceBreakdownCard: React.FC = () => {
           </View>
         )}
 
-        {/* Enhanced Exchange Button */}
-        {balanceBreakdown.nonSendable > 0 && (
-          <TouchableOpacity
-            onPress={handleOpenExchange}
-            style={{
-              marginTop: Spacing.lg,
-              backgroundColor: themeColors.primary.blue,
-              borderRadius: 16,
-              paddingVertical: Spacing.md,
-              paddingHorizontal: Spacing.lg,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadow: `0 4px 8px ${themeColors.primary.blue}4D`,
-              elevation: 4,
-            }}
+        {/* Enhanced Exchange Button - Always visible */}
+        <TouchableOpacity
+          onPress={handleOpenExchange}
+          disabled={!hasTokensToExchange}
+          style={{
+            marginTop: Spacing.lg,
+            backgroundColor: hasTokensToExchange
+              ? themeColors.primary.blue
+              : themeColors.background.tertiary,
+            borderRadius: 16,
+            paddingVertical: Spacing.md,
+            paddingHorizontal: Spacing.lg,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadow: hasTokensToExchange
+              ? `0 4px 8px ${themeColors.primary.blue}4D`
+              : 'none',
+            elevation: hasTokensToExchange ? 4 : 0,
+            opacity: hasTokensToExchange ? 1 : 0.6,
+          }}
+        >
+          <View style={{
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: hasTokensToExchange
+              ? 'rgba(255, 255, 255, 0.2)'
+              : 'rgba(0, 0, 0, 0.1)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: Spacing.sm,
+          }}>
+            <Ionicons
+              name="swap-horizontal"
+              size={14}
+              color={hasTokensToExchange
+                ? themeColors.icon.inverse
+                : themeColors.icon.secondary}
+            />
+          </View>
+          <Typography
+            variant="bodyMedium"
+            color={hasTokensToExchange ? "inverse" : "secondary"}
+            weight="semibold"
           >
-            <View style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: Spacing.sm,
-            }}>
-              <Ionicons
-                name="swap-horizontal"
-                size={14}
-                color={themeColors.icon.inverse}
-              />
-            </View>
-            <Typography variant="bodyMedium" color="inverse" weight="semibold">
-              Exchange Tokens
-            </Typography>
-          </TouchableOpacity>
-        )}
+            {hasTokensToExchange
+              ? "Exchange Tokens"
+              : "No Tokens to Exchange"}
+          </Typography>
+        </TouchableOpacity>
       </View>
     </Card>
   );

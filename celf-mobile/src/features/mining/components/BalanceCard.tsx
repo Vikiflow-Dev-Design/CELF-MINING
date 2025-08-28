@@ -3,7 +3,7 @@
  * Shows the user's total CELF balance with mining integration
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Card, Typography } from '@/components/ui';
 import { Spacing } from '@/constants/design-tokens';
@@ -19,12 +19,24 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
 }) => {
   const {
     totalBalance: storeBalance,
+    balanceBreakdown,
     miningIntegration,
     isLoadingBalance,
     syncBalanceWithBackend,
+    refreshBalance,
     clearSyncError,
     getFormattedBalance
   } = useWalletStore();
+
+  // Ensure balance is loaded when component mounts (only once)
+  useEffect(() => {
+    if (storeBalance === 0 && !isLoadingBalance) {
+      console.log('💰 BalanceCard: Balance is 0, refreshing...');
+      refreshBalance().catch(error => {
+        console.error('❌ BalanceCard: Failed to refresh balance:', error);
+      });
+    }
+  }, []); // Empty dependency array - only run once on mount
 
   // Use prop balance or store balance
   const displayBalance = propBalance !== undefined ? propBalance : storeBalance;
@@ -39,7 +51,9 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   };
 
   const renderMiningIndicator = () => {
-    if (!miningIntegration.isMiningActive || miningIntegration.currentSessionEarnings === 0) {
+    const earnings = miningIntegration.currentSessionEarnings || 0;
+
+    if (!miningIntegration.isMiningActive || earnings === 0) {
       return null;
     }
 
@@ -62,7 +76,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
           marginRight: Spacing.xs,
         }} />
         <Typography variant="bodySmall" color="success" weight="medium">
-          +{miningIntegration.currentSessionEarnings.toFixed(4)} CELF mining
+          +{earnings.toFixed(6)} CELF mining
         </Typography>
       </View>
     );
@@ -191,6 +205,77 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
         <Typography variant="bodyLarge" color="primary" weight="semibold">
           CELF
         </Typography>
+
+        {/* Balance Breakdown */}
+        <View style={{
+          marginTop: Spacing.lg,
+          width: '100%',
+          paddingHorizontal: Spacing.md,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: Spacing.sm,
+          }}>
+            <Typography variant="bodySmall" color="secondary">
+              Sendable
+            </Typography>
+            <Typography variant="bodySmall" weight="medium">
+              {getFormattedBalance(balanceBreakdown.sendable)}
+            </Typography>
+          </View>
+
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: Spacing.sm,
+          }}>
+            <Typography variant="bodySmall" color="secondary">
+              Non-Sendable
+            </Typography>
+            <Typography variant="bodySmall" weight="medium">
+              {getFormattedBalance(balanceBreakdown.nonSendable)}
+            </Typography>
+          </View>
+
+          {balanceBreakdown.pending > 0 && (
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: Spacing.sm,
+            }}>
+              <Typography variant="bodySmall" color="secondary">
+                Pending
+              </Typography>
+              <Typography variant="bodySmall" weight="medium" color="warning">
+                {getFormattedBalance(balanceBreakdown.pending)}
+              </Typography>
+            </View>
+          )}
+
+          {/* Divider */}
+          <View style={{
+            height: 1,
+            backgroundColor: '#E5E5E5',
+            marginVertical: Spacing.sm,
+          }} />
+
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <Typography variant="bodyMedium" weight="semibold">
+              Total Balance
+            </Typography>
+            <Typography variant="bodyMedium" weight="bold">
+              {getFormattedBalance(displayBalance)}
+            </Typography>
+          </View>
+        </View>
 
         {/* Mining Indicator */}
         {renderMiningIndicator()}

@@ -1,4 +1,4 @@
-const supabaseService = require('./supabaseService');
+const mongodbService = require('./mongodbService');
 
 class MiningService {
   constructor() {

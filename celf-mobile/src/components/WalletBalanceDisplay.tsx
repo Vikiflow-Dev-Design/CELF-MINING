@@ -66,11 +66,14 @@ export const WalletBalanceDisplay: React.FC<WalletBalanceDisplayProps> = ({
   const renderMiningIndicator = () => {
     if (!showMiningIndicator || !miningIntegration.isMiningActive) return null;
 
+    const earnings = miningIntegration.currentSessionEarnings || 0;
+    const formattedEarnings = isNaN(earnings) ? '0.000000' : earnings.toFixed(6);
+
     return (
       <View style={styles.miningIndicator}>
         <View style={styles.miningDot} />
         <Text style={styles.miningText}>
-          +{miningIntegration.currentSessionEarnings.toFixed(4)} CELF mining
+          +{formattedEarnings} CELF mining
         </Text>
       </View>
     );

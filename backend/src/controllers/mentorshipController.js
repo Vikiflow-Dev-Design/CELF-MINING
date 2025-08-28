@@ -1,4 +1,4 @@
-const supabaseService = require('../services/supabaseService');
+const mongodbService = require('../services/mongodbService');
 const { createResponse } = require('../utils/responseUtils');
 
 class MentorshipController {

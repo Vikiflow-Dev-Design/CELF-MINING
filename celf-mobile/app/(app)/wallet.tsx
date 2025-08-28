@@ -3,7 +3,7 @@
  * Reduced from 264 lines to ~60 lines by extracting components and logic
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, ScrollView, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Typography } from '@/components/ui';
@@ -14,6 +14,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { router } from 'expo-router';
 import { useWallet } from '@/src/features/wallet/hooks/useWallet';
 import { BalanceBreakdownCard } from '@/src/features/wallet/components/BalanceBreakdownCard';
+import { useWalletStore } from '@/stores/walletStore';
 
 export default function WalletScreen() {
   const { toggleSidebar } = useNavigation();
@@ -32,6 +33,29 @@ export default function WalletScreen() {
     refreshWalletData,
   } = useWallet();
 
+  const { debugWalletState, refreshBalance } = useWalletStore();
+
+  // Load balance when wallet screen mounts
+  useEffect(() => {
+    console.log('💰 Wallet Screen: Loading balance on mount...');
+
+    // First, debug the current state
+    debugWalletState();
+
+    const loadBalance = async () => {
+      try {
+        await refreshBalance();
+        console.log('✅ Wallet Screen: Balance loaded successfully');
+        // Debug state after loading
+        setTimeout(() => debugWalletState(), 100);
+      } catch (error) {
+        console.error('❌ Wallet Screen: Failed to load balance:', error);
+      }
+    };
+
+    loadBalance();
+  }, []); // Empty dependency array - only run once on mount
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refreshWalletData();
@@ -44,9 +68,21 @@ export default function WalletScreen() {
         title="Wallet"
         onMenuPress={toggleSidebar}
         rightAction={
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="close" size={24} color={themeColors.icon.secondary} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => {
+                console.log('🔍 Debug: Wallet state and refreshing balance...');
+                debugWalletState();
+                refreshBalance();
+              }}
+              style={{ marginRight: Spacing.sm }}
+            >
+              <Ionicons name="bug" size={20} color={themeColors.icon.secondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="close" size={24} color={themeColors.icon.secondary} />
+            </TouchableOpacity>
+          </View>
         }
       />
 

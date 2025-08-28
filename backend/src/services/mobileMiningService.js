@@ -1,12 +1,46 @@
-const supabaseService = require('./supabaseService');
+const mongodbService = require('./mongodbService');
+const MobileMiningSession = require('../models/MobileMiningSession');
 const { v4: uuidv4 } = require('uuid');
 
 class MobileMiningService {
   constructor() {
     // Default fallback values (will be overridden by admin settings)
-    this.DEFAULT_MINING_RATE = 0.125; // CELF per hour
+    this.DEFAULT_MINING_RATE_PER_SECOND = 0.000278; // CELF per second (1 CELF/hour)
+    this.DEFAULT_MINING_INTERVAL_MS = 1000; // Mine every 1 second
     this.DEFAULT_MAX_SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
     this.VALIDATION_TOLERANCE = 0.1; // 10% tolerance for network delays
+
+    // Auto-complete expired sessions every 5 minutes
+    this.startAutoCompletionTimer();
+  }
+
+  /**
+   * Start timer to auto-complete expired sessions
+   */
+  startAutoCompletionTimer() {
+    setInterval(async () => {
+      try {
+        const completedSessions = await MobileMiningSession.autoCompleteExpiredSessions();
+        if (completedSessions.length > 0) {
+          console.log(`⏰ Auto-completed ${completedSessions.length} expired mining sessions`);
+
+          // Add rewards to wallets for auto-completed sessions
+          for (const sessionResult of completedSessions) {
+            try {
+              await this.addMiningRewardsToWallet(
+                sessionResult.userId,
+                sessionResult.finalEarnings,
+                sessionResult.sessionId
+              );
+            } catch (error) {
+              console.error(`Failed to add rewards for auto-completed session ${sessionResult.sessionId}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in auto-completion timer:', error);
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
   }
 
   /**
@@ -15,19 +49,14 @@ class MobileMiningService {
   async getAdminMiningSettings() {
     try {
       console.log('Fetching admin mining settings...');
-      const settings = await supabaseService.getMiningSettings();
+      const settings = await mongodbService.getMiningSettings();
       console.log('Admin settings retrieved:', settings);
 
       const adminSettings = {
-        miningRate: settings.defaultMiningRate || this.DEFAULT_MINING_RATE,
+        miningRatePerSecond: settings.miningRatePerSecond || this.DEFAULT_MINING_RATE_PER_SECOND,
+        miningIntervalMs: settings.miningIntervalMs || this.DEFAULT_MINING_INTERVAL_MS,
         maxSessionTimeMs: (settings.maxSessionTime || 86400) * 1000, // Convert seconds to ms
-        miningSpeed: settings.miningSpeed || 1.0,
-        rewardMultiplier: settings.rewardMultiplier || 1.0,
         maintenanceMode: settings.maintenanceMode || false,
-        minTokensToMine: settings.minTokensToMine || 0.01,
-        maxTokensPerSession: settings.maxTokensPerSession || 100,
-        cooldownPeriod: settings.cooldownPeriod || 0,
-        dailyLimit: settings.dailyLimit || 1000,
         referralBonus: settings.referralBonus || 0.1,
         autoClaim: settings.autoClaim !== undefined ? settings.autoClaim : true,
         notificationEnabled: settings.notificationEnabled !== undefined ? settings.notificationEnabled : true
@@ -40,13 +69,10 @@ class MobileMiningService {
       console.log('Using default settings due to error');
 
       const defaultSettings = {
-        miningRate: this.DEFAULT_MINING_RATE,
+        miningRatePerSecond: this.DEFAULT_MINING_RATE_PER_SECOND,
+        miningIntervalMs: this.DEFAULT_MINING_INTERVAL_MS,
         maxSessionTimeMs: this.DEFAULT_MAX_SESSION_DURATION_MS,
-        miningSpeed: 1.0,
-        rewardMultiplier: 1.0,
-        maintenanceMode: false,
-        minTokensToMine: 0.01,
-        maxTokensPerSession: 100
+        maintenanceMode: false
       };
 
       console.log('Default settings:', defaultSettings);
@@ -71,13 +97,17 @@ class MobileMiningService {
       }
 
       // Check if user already has an active session
-      const existingSession = await supabaseService.findActiveMiningSession(userId);
+      const existingSession = await MobileMiningSession.findOne({
+        userId: userId,
+        status: 'active'
+      });
 
       if (existingSession) {
         // Check if existing session is expired using admin-configured max time
-        const sessionAge = new Date() - new Date(existingSession.started_at);
+        const sessionAge = new Date() - new Date(existingSession.startedAt);
         if (sessionAge >= adminSettings.maxSessionTimeMs) {
-          await this.completeExpiredSession(existingSession.id);
+          await existingSession.completeSession('auto_completed');
+          console.log('✅ Expired session auto-completed');
         } else {
           throw new Error('User already has an active mining session');
         }
@@ -85,16 +115,20 @@ class MobileMiningService {
 
       // Create new session with admin-configured settings
       const sessionId = uuidv4();
-      const effectiveMiningRate = adminSettings.miningRate * adminSettings.miningSpeed * adminSettings.rewardMultiplier;
+      const miningRatePerSecond = adminSettings.miningRatePerSecond;
+      const miningIntervalMs = adminSettings.miningIntervalMs;
 
       const sessionData = {
-        user_id: userId,
+        name: `Mining Session ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
+        description: `Server-authoritative mobile mining session on ${deviceInfo.platform || 'unknown'}`,
+        userId: userId,
         session_id: sessionId,
         status: 'active',
-        mining_rate: effectiveMiningRate,
+        miningRatePerSecond: miningRatePerSecond,
+        miningIntervalMs: miningIntervalMs,
+        tokensEarned: 0, // Will be calculated server-side at completion
         max_duration_ms: adminSettings.maxSessionTimeMs,
         remaining_time_ms: adminSettings.maxSessionTimeMs,
-        started_at: new Date().toISOString(),
         device_info: {
           deviceId: deviceInfo.deviceId || 'unknown',
           platform: deviceInfo.platform || 'unknown',
@@ -102,22 +136,29 @@ class MobileMiningService {
           osVersion: deviceInfo.osVersion || 'unknown'
         },
         validation_data: {
-          last_validated_at: new Date().toISOString(),
+          last_validated_at: new Date(),
           validation_count: 0,
           suspicious_activity: false,
-          flagged_reasons: []
+          flagged_reasons: [],
+          validation_tolerance: this.VALIDATION_TOLERANCE
         },
-        server_time: new Date().toISOString()
+        startedAt: new Date(),
+        server_time: new Date()
       };
 
-      const session = await supabaseService.createMiningSession(sessionData);
+      const session = await MobileMiningSession.create(sessionData);
+      console.log('✅ Server-authoritative mining session created:', session.session_id);
+      console.log(`📊 Session will run for ${adminSettings.maxSessionTimeMs / 1000 / 3600} hours`);
+      console.log(`💰 Expected max earnings: ${session.calculateServerEarnings().toFixed(6)} CELF`);
 
       return {
         sessionId: session.session_id,
-        startTime: session.started_at,
-        miningRate: session.mining_rate,
+        startTime: session.startedAt,
+        miningRatePerSecond: session.miningRatePerSecond,
+        miningIntervalMs: session.miningIntervalMs,
         maxDurationMs: session.max_duration_ms,
-        serverTime: session.server_time
+        serverTime: session.server_time,
+        estimatedMaxEarnings: session.calculateServerEarnings() // For client UI estimation
       };
     } catch (error) {
       console.error('Error starting mining session:', error);
@@ -126,14 +167,16 @@ class MobileMiningService {
   }
 
   /**
-   * Complete a mining session and sync rewards to wallet
+   * Complete a mining session with server-authoritative calculation
    * @param {string} sessionId - Session ID
    * @param {object} clientData - Client-reported data for validation
    * @returns {Promise<object>} Completion result
    */
   async completeMiningSession(sessionId, clientData = {}) {
     try {
-      const session = await supabaseService.findOne('mining_sessions', { session_id: sessionId });
+      console.log(`🏁 Completing server-authoritative mining session: ${sessionId}`);
+
+      const session = await MobileMiningSession.findOne({ session_id: sessionId });
 
       if (!session) {
         throw new Error('Mining session not found');
@@ -143,61 +186,22 @@ class MobileMiningService {
         throw new Error('Session is not active');
       }
 
-      // Get current admin settings for validation
-      const adminSettings = await this.getAdminMiningSettings();
+      // Complete session using the model's server-authoritative method
+      await session.completeSession('user_stopped', clientData.reportedEarnings);
 
-      // Calculate server-side earnings (authoritative)
-      let serverEarnings = await this.calculateServerEarnings(session);
+      console.log(`💰 Server calculated earnings: ${session.tokensEarned.toFixed(6)} CELF`);
+      console.log(`⏱️ Session duration: ${session.completion_data.session_duration_ms / 1000} seconds`);
+      console.log(`🔢 Completed intervals: ${session.completion_data.completed_intervals}`);
 
-      // Check if session exceeds admin-configured max tokens per session
-      if (serverEarnings > adminSettings.maxTokensPerSession) {
-        console.warn(`Session ${sessionId} exceeded max tokens per session: ${serverEarnings} > ${adminSettings.maxTokensPerSession}`);
-        // Cap the earnings to the maximum allowed
-        serverEarnings = adminSettings.maxTokensPerSession;
-      }
-      const actualDurationMs = Math.min(
-        new Date() - new Date(session.started_at),
-        session.max_duration_ms
-      );
-
-      // Validate client data if provided
-      if (clientData.reportedEarnings) {
-        const isValid = this.validateClientEarnings(
-          serverEarnings,
-          clientData.reportedEarnings
-        );
-
-        if (!isValid) {
-          await this.flagSuspiciousActivity(session.id, 'Invalid earnings reported');
-          console.warn(`Suspicious activity detected for session ${sessionId}`);
-        }
-      }
-
-      // Complete the session
-      const completedAt = new Date().toISOString();
-      const updatedSession = await supabaseService.update('mining_sessions', session.id, {
-        status: 'completed',
-        completed_at: completedAt,
-        tokens_earned: serverEarnings,
-        runtime_seconds: Math.floor(actualDurationMs / 1000),
-        completion_data: {
-          final_earnings: serverEarnings,
-          actual_duration_ms: actualDurationMs,
-          completed_at: completedAt,
-          synced_to_wallet: false,
-          transaction_id: null
-        }
-      });
-
-      // Add mining rewards to user wallet
+      // Add mining rewards to user wallet (non-transferable)
       const walletResult = await this.addMiningRewardsToWallet(
-        session.user_id,
-        serverEarnings,
+        session.userId,
+        session.tokensEarned,
         session.id
       );
 
       // Update session with transaction info
-      await supabaseService.update('mining_sessions', session.id, {
+      await mongodbService.update('MiningSession', session.id, {
         completion_data: {
           ...updatedSession.completion_data,
           synced_to_wallet: true,
@@ -226,32 +230,47 @@ class MobileMiningService {
    */
   async getCurrentSession(userId) {
     try {
-      const session = await supabaseService.findActiveMiningSession(userId);
+      const session = await MobileMiningSession.findOne({
+        userId: userId,
+        status: 'active'
+      });
 
       if (!session) {
         return null;
       }
 
-      // Check if session is expired
-      const sessionAge = new Date() - new Date(session.started_at);
-      if (sessionAge >= this.MAX_SESSION_DURATION_MS) {
-        await this.completeExpiredSession(session.id);
-        return null;
+      // Check if session is expired and auto-complete if needed
+      const sessionAge = new Date() - new Date(session.startedAt);
+      if (sessionAge >= session.max_duration_ms) {
+        await session.completeSession('auto_completed');
+        console.log('✅ Session auto-completed during status check');
+
+        // Add rewards to wallet
+        await this.addMiningRewardsToWallet(
+          session.userId,
+          session.tokensEarned,
+          session.session_id
+        );
+
+        return null; // Session completed
       }
 
-      // Calculate current earnings and remaining time
-      const currentEarnings = await this.calculateServerEarnings(session);
+      // Calculate current server-authoritative earnings
+      const currentEarnings = session.calculateServerEarnings();
       const remainingTimeMs = Math.max(0, session.max_duration_ms - sessionAge);
       const progress = Math.min(100, (sessionAge / session.max_duration_ms) * 100);
 
       return {
         sessionId: session.session_id,
-        startTime: session.started_at,
-        miningRate: session.mining_rate,
-        currentEarnings,
+        startTime: session.startedAt,
+        miningRatePerSecond: session.miningRatePerSecond,
+        miningIntervalMs: session.miningIntervalMs,
+        maxDurationMs: session.max_duration_ms,
+        currentEarnings, // Server-calculated current earnings
         remainingTimeMs,
         progress,
-        serverTime: new Date()
+        serverTime: new Date(),
+        isActive: true
       };
     } catch (error) {
       console.error('Error getting current session:', error);
@@ -266,7 +285,7 @@ class MobileMiningService {
    */
   async cancelMiningSession(sessionId) {
     try {
-      const session = await supabaseService.findOne('mining_sessions', { session_id: sessionId });
+      const session = await mongodbService.findOne('MiningSession', { session_id: sessionId });
 
       if (!session) {
         throw new Error('Mining session not found');
@@ -279,17 +298,17 @@ class MobileMiningService {
       // Calculate earnings up to cancellation point
       const earningsAtCancellation = await this.calculateServerEarnings(session);
       const cancelledAt = new Date().toISOString();
-      const durationMs = new Date() - new Date(session.started_at);
+      const durationMs = new Date() - new Date(session.startedAt);
 
-      const updatedSession = await supabaseService.update('mining_sessions', session.id, {
+      const updatedSession = await mongodbService.update('MiningSession', session.id, {
         status: 'cancelled',
-        completed_at: cancelledAt,
-        tokens_earned: earningsAtCancellation,
-        runtime_seconds: Math.floor(durationMs / 1000),
+        completedAt: cancelledAt,
+        tokensEarned: earningsAtCancellation,
+        runtimeSeconds: Math.floor(durationMs / 1000),
         completion_data: {
           final_earnings: earningsAtCancellation,
           actual_duration_ms: durationMs,
-          completed_at: cancelledAt,
+          completedAt: cancelledAt,
           synced_to_wallet: false,
           transaction_id: null
         }
@@ -298,7 +317,7 @@ class MobileMiningService {
       // Add partial rewards to wallet if any
       if (earningsAtCancellation > 0) {
         await this.addMiningRewardsToWallet(
-          session.user_id,
+          session.userId,
           earningsAtCancellation,
           session.id
         );
@@ -331,21 +350,28 @@ class MobileMiningService {
   }
 
   /**
-   * Calculate server-side earnings for a session
+   * Calculate server-side earnings for a session using per-second mining
    * @param {object} session - Mining session record
    * @returns {Promise<number>} Calculated earnings
    */
   async calculateServerEarnings(session) {
-    if (session.status !== 'active' || !session.started_at) {
-      return session.tokens_earned || 0;
+    if (session.status !== 'active' || !session.startedAt) {
+      return session.tokensEarned || 0;
     }
 
     const elapsedMs = Math.min(
-      new Date() - new Date(session.started_at),
+      new Date() - new Date(session.startedAt),
       session.max_duration_ms
     );
-    const elapsedHours = elapsedMs / (1000 * 60 * 60);
-    return elapsedHours * session.mining_rate;
+
+    // Calculate based on mining intervals that have completed
+    const miningIntervalMs = session.miningIntervalMs || 1000; // Default 1 second
+    const completedIntervals = Math.floor(elapsedMs / miningIntervalMs);
+    const miningRatePerSecond = session.miningRatePerSecond || 0.000278; // Default rate
+
+    // Calculate earnings: completed intervals * rate per interval
+    const intervalRate = miningRatePerSecond * (miningIntervalMs / 1000);
+    return completedIntervals * intervalRate;
   }
 
   /**
@@ -354,28 +380,28 @@ class MobileMiningService {
    */
   async completeExpiredSession(sessionId) {
     try {
-      const session = await supabaseService.findById('mining_sessions', sessionId);
+      const session = await mongodbService.findById('MiningSession', sessionId);
       if (!session) return;
 
       const serverEarnings = await this.calculateServerEarnings(session);
       const completedAt = new Date().toISOString();
 
-      await supabaseService.update('mining_sessions', sessionId, {
+      await mongodbService.update('MiningSession', sessionId, {
         status: 'expired',
-        completed_at: completedAt,
-        tokens_earned: serverEarnings,
-        runtime_seconds: 86400, // 24 hours
+        completedAt: completedAt,
+        tokensEarned: serverEarnings,
+        runtimeSeconds: 86400, // 24 hours
         completion_data: {
           final_earnings: serverEarnings,
           actual_duration_ms: this.MAX_SESSION_DURATION_MS,
-          completed_at: completedAt,
+          completedAt: completedAt,
           synced_to_wallet: false,
           transaction_id: null
         }
       });
 
       // Add rewards to wallet
-      await this.addMiningRewardsToWallet(session.user_id, serverEarnings, sessionId);
+      await this.addMiningRewardsToWallet(session.userId, serverEarnings, sessionId);
     } catch (error) {
       console.error('Error completing expired session:', error);
     }
@@ -388,7 +414,7 @@ class MobileMiningService {
    */
   async flagSuspiciousActivity(sessionId, reason) {
     try {
-      const session = await supabaseService.findById('mining_sessions', sessionId);
+      const session = await mongodbService.findById('MiningSession', sessionId);
       if (!session) return;
 
       const validationData = session.validation_data || {};
@@ -396,7 +422,7 @@ class MobileMiningService {
       validationData.flagged_reasons = validationData.flagged_reasons || [];
       validationData.flagged_reasons.push(reason);
 
-      await supabaseService.update('mining_sessions', sessionId, {
+      await mongodbService.update('MiningSession', sessionId, {
         validation_data: validationData
       });
     } catch (error) {
@@ -414,39 +440,39 @@ class MobileMiningService {
   async addMiningRewardsToWallet(userId, amount, sessionId) {
     try {
       // Get user wallet
-      const wallet = await supabaseService.findWalletByUserId(userId);
+      const wallet = await mongodbService.findWalletByUserId(userId);
       if (!wallet) {
         throw new Error('User wallet not found');
       }
 
       // Add to non-sendable balance (mining rewards are non-transferable)
-      const updatedWallet = await supabaseService.update('wallets', wallet.id, {
-        non_sendable_balance: wallet.non_sendable_balance + amount,
-        total_mined: (wallet.total_mined || 0) + amount,
-        last_activity: new Date().toISOString()
+      const updatedWallet = await mongodbService.update('Wallet', wallet.id, {
+        non_sendableBalance: wallet.nonSendableBalance + amount,
+        totalMined: (wallet.totalMined || 0) + amount,
+        lastActivity: new Date().toISOString()
       });
 
       // Create transaction record
       const transactionData = {
-        to_user_id: userId,
+        to_userId: userId,
         amount,
         type: 'mining',
         status: 'completed',
         description: 'Mobile mining reward',
         session_id: sessionId,
-        mining_rate: this.FIXED_MINING_RATE,
-        processed_at: new Date().toISOString()
+        miningRate: this.FIXED_MINING_RATE,
+        processedAt: new Date().toISOString()
       };
 
-      const transaction = await supabaseService.createTransaction(transactionData);
+      const transaction = await mongodbService.createTransaction(transactionData);
 
       return {
         transactionId: transaction.id,
         newBalance: {
-          total: updatedWallet.total_balance,
-          nonSendable: updatedWallet.non_sendable_balance,
-          sendable: updatedWallet.sendable_balance,
-          pending: updatedWallet.pending_balance
+          total: updatedWallet.totalBalance,
+          nonSendable: updatedWallet.nonSendableBalance,
+          sendable: updatedWallet.sendableBalance,
+          pending: updatedWallet.pendingBalance
         }
       };
     } catch (error) {
@@ -462,13 +488,13 @@ class MobileMiningService {
    */
   async getUserMiningStats(userId) {
     try {
-      const sessions = await supabaseService.findMiningSessionsByUser(userId);
+      const sessions = await mongodbService.findMiningSessionsByUser(userId);
 
       const stats = {
         totalSessions: sessions.length,
         completedSessions: sessions.filter(s => s.status === 'completed' || s.status === 'expired').length,
-        totalEarnings: sessions.reduce((sum, s) => sum + parseFloat(s.tokens_earned || 0), 0),
-        totalMiningTime: sessions.reduce((sum, s) => sum + (s.runtime_seconds || 0) * 1000, 0), // Convert to ms
+        totalEarnings: sessions.reduce((sum, s) => sum + parseFloat(s.tokensEarned || 0), 0),
+        totalMiningTime: sessions.reduce((sum, s) => sum + (s.runtimeSeconds || 0) * 1000, 0), // Convert to ms
         averageSessionDuration: 0,
         lastMiningSession: null
       };
@@ -478,15 +504,15 @@ class MobileMiningService {
       }
 
       const lastSession = sessions
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
       if (lastSession) {
         stats.lastMiningSession = {
           sessionId: lastSession.session_id,
           status: lastSession.status,
-          startTime: lastSession.started_at,
-          endTime: lastSession.completed_at,
-          earnings: parseFloat(lastSession.tokens_earned || 0)
+          startTime: lastSession.startedAt,
+          endTime: lastSession.completedAt,
+          earnings: parseFloat(lastSession.tokensEarned || 0)
         };
       }
 
@@ -503,7 +529,7 @@ class MobileMiningService {
   async cleanupExpiredSessions() {
     try {
       // Use the SQL function we created in the migration
-      const client = supabaseService.getClient();
+      const client = mongodbService.getClient();
       const { error } = await client.rpc('auto_complete_expired_mining_sessions');
 
       if (error) {
@@ -511,15 +537,15 @@ class MobileMiningService {
       }
 
       // Get count of expired sessions that were just completed
-      const expiredSessions = await supabaseService.find('mining_sessions', {
+      const expiredSessions = await mongodbService.find('MiningSession', {
         status: 'expired'
       }, {
-        orderBy: { column: 'updated_at', ascending: false },
+        orderBy: { column: 'updatedAt', ascending: false },
         limit: 100
       });
 
       const recentlyExpired = expiredSessions.filter(session => {
-        const updatedAt = new Date(session.updated_at);
+        const updatedAt = new Date(session.updatedAt);
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
         return updatedAt > fiveMinutesAgo;
       });

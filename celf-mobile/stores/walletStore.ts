@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { apiService } from '@/services/apiService';
+import { apiService, Transaction as ApiTransaction } from '@/services/apiService';
 
 export interface Transaction {
   id: string;
@@ -70,8 +70,8 @@ interface WalletState {
   updateBalance: (balance: number) => void;
   updateBalanceBreakdown: (breakdown: Partial<BalanceBreakdown>) => void;
   addMiningReward: (amount: number) => void;
-  exchangeToSendable: (amount: number) => void;
-  exchangeToNonSendable: (amount: number) => void;
+  exchangeToSendable: (amount: number) => Promise<void>;
+  exchangeToNonSendable: (amount: number) => Promise<void>;
   addTransaction: (transaction: Transaction) => void;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   setCurrentAddress: (address: string) => void;
@@ -81,6 +81,7 @@ interface WalletState {
   updateExchangeRate: (rate: number) => void;
   setCurrency: (currency: 'CELF' | 'USD') => void;
   getFormattedBalance: (amount: number) => string;
+  debugWalletState: () => void;
 
   // Mining integration actions
   initializeMiningBalance: (baseBalance: number) => void;
@@ -128,25 +129,42 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         set({ isLoadingBalance: true });
 
         try {
+          console.log('🔄 Wallet: Refreshing balance...');
           const response = await apiService.getWalletBalance();
+          console.log('📊 Wallet: API response:', response);
 
           if (response.success && response.data) {
             const { totalBalance, sendableBalance, nonSendableBalance, pendingBalance, currentAddress } = response.data;
 
+            console.log('💰 Wallet: Balance data received:', {
+              totalBalance,
+              sendableBalance,
+              nonSendableBalance,
+              pendingBalance,
+              currentAddress
+            });
+
             const newBreakdown = {
-              sendable: sendableBalance,
-              nonSendable: nonSendableBalance,
-              pending: pendingBalance,
+              sendable: sendableBalance || 0,
+              nonSendable: nonSendableBalance || 0,
+              pending: pendingBalance || 0,
             };
 
             set({
-              totalBalance,
+              totalBalance: totalBalance || 0,
               balanceBreakdown: newBreakdown,
-              availableBalance: sendableBalance, // Legacy compatibility
-              pendingBalance: pendingBalance, // Legacy compatibility
-              currentAddress,
+              availableBalance: sendableBalance || 0, // Legacy compatibility
+              pendingBalance: pendingBalance || 0, // Legacy compatibility
+              currentAddress: currentAddress || '',
               isLoadingBalance: false,
             });
+
+            console.log('✅ Wallet Store: Balance state updated:', {
+              totalBalance: totalBalance || 0,
+              breakdown: newBreakdown
+            });
+
+            console.log('✅ Wallet: Balance updated successfully');
 
             // Update addresses if we have a current address
             if (currentAddress) {
@@ -166,10 +184,19 @@ export const useWalletStore = create<WalletState>((set, get) => ({
                 });
               }
             }
+          } else {
+            console.error('❌ Wallet: API response failed:', response.message);
+            set({ isLoadingBalance: false });
           }
         } catch (error) {
-          console.error('Failed to refresh balance:', error);
-          set({ isLoadingBalance: false });
+          console.error('❌ Wallet: Failed to refresh balance:', error);
+          set({
+            isLoadingBalance: false,
+            miningIntegration: {
+              ...get().miningIntegration,
+              syncError: error instanceof Error ? error.message : 'Failed to refresh balance'
+            }
+          });
         }
       },
 
@@ -220,42 +247,88 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         });
       },
 
-      exchangeToSendable: (amount: number) => {
-        set((state) => {
-          if (amount > state.balanceBreakdown.nonSendable) {
-            throw new Error('Insufficient non-sendable balance');
+      exchangeToSendable: async (amount: number) => {
+        try {
+          console.log(`🔄 Wallet: Exchanging ${amount} CELF from non-sendable to sendable...`);
+
+          const response = await apiService.exchangeTokens(amount, 'nonSendable', 'sendable');
+
+          if (response.success && response.data) {
+            const { newBalance } = response.data;
+
+            set((state) => ({
+              balanceBreakdown: {
+                sendable: newBalance.sendable,
+                nonSendable: newBalance.nonSendable,
+                pending: state.balanceBreakdown.pending,
+              },
+              totalBalance: newBalance.total,
+              availableBalance: newBalance.sendable,
+            }));
+
+            console.log('✅ Wallet: Exchange to sendable completed successfully');
+
+            // Create transaction record
+            const transaction: ApiTransaction = {
+              id: `exchange_${Date.now()}`,
+              amount,
+              type: 'exchange',
+              status: 'completed',
+              description: `Exchanged ${amount} CELF to sendable`,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+
+            get().addTransaction(transaction);
+          } else {
+            throw new Error(response.message || 'Exchange failed');
           }
-
-          const newBreakdown = {
-            ...state.balanceBreakdown,
-            sendable: state.balanceBreakdown.sendable + amount,
-            nonSendable: state.balanceBreakdown.nonSendable - amount,
-          };
-
-          return {
-            balanceBreakdown: newBreakdown,
-            availableBalance: newBreakdown.sendable,
-          };
-        });
+        } catch (error) {
+          console.error('❌ Wallet: Exchange to sendable failed:', error);
+          throw error;
+        }
       },
 
-      exchangeToNonSendable: (amount: number) => {
-        set((state) => {
-          if (amount > state.balanceBreakdown.sendable) {
-            throw new Error('Insufficient sendable balance');
+      exchangeToNonSendable: async (amount: number) => {
+        try {
+          console.log(`🔄 Wallet: Exchanging ${amount} CELF from sendable to non-sendable...`);
+
+          const response = await apiService.exchangeTokens(amount, 'sendable', 'nonSendable');
+
+          if (response.success && response.data) {
+            const { newBalance } = response.data;
+
+            set((state) => ({
+              balanceBreakdown: {
+                sendable: newBalance.sendable,
+                nonSendable: newBalance.nonSendable,
+                pending: state.balanceBreakdown.pending,
+              },
+              totalBalance: newBalance.total,
+              availableBalance: newBalance.sendable,
+            }));
+
+            console.log('✅ Wallet: Exchange to non-sendable completed successfully');
+
+            // Create transaction record
+            const transaction: ApiTransaction = {
+              id: `exchange_${Date.now()}`,
+              amount,
+              type: 'exchange',
+              status: 'completed',
+              description: `Exchanged ${amount} CELF to non-sendable`,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+
+            get().addTransaction(transaction);
+          } else {
+            throw new Error(response.message || 'Exchange failed');
           }
-
-          const newBreakdown = {
-            ...state.balanceBreakdown,
-            sendable: state.balanceBreakdown.sendable - amount,
-            nonSendable: state.balanceBreakdown.nonSendable + amount,
-          };
-
-          return {
-            balanceBreakdown: newBreakdown,
-            availableBalance: newBreakdown.sendable,
-          };
-        });
+        } catch (error) {
+          console.error('❌ Wallet: Exchange to non-sendable failed:', error);
+          throw error;
+        }
       },
 
       addTransaction: (transaction: Transaction) => {
@@ -283,65 +356,58 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       },
 
       sendTokens: async (toAddress: string, amount: number, description?: string) => {
-        const state = get();
+        try {
+          console.log(`🚀 Wallet: Sending ${amount} CELF to ${toAddress}...`);
 
-        if (amount > state.balanceBreakdown.sendable) {
-          throw new Error('Insufficient sendable balance. Please exchange tokens first.');
+          const state = get();
+
+          if (amount > state.balanceBreakdown.sendable) {
+            throw new Error('Insufficient sendable balance. Please exchange tokens first.');
+          }
+
+          // Call backend API to send tokens
+          const response = await apiService.sendTokens(toAddress, amount, description);
+
+          if (response.success && response.data) {
+            const { transaction, recipient } = response.data;
+
+            // Create local transaction record
+            const localTransaction: Transaction = {
+              id: transaction.id || Date.now().toString(),
+              type: 'send',
+              amount: -amount, // Negative for outgoing
+              toAddress,
+              timestamp: Date.now(),
+              status: 'completed',
+              description: description || `Sent to ${recipient?.name || toAddress.slice(0, 8) + '...'}`,
+              fee: 0, // No fees
+            };
+
+            // Update balance and add transaction
+            set((state) => {
+              const newBreakdown = {
+                ...state.balanceBreakdown,
+                sendable: state.balanceBreakdown.sendable - amount,
+              };
+              const newTotal = newBreakdown.sendable + newBreakdown.nonSendable + newBreakdown.pending;
+
+              return {
+                transactions: [localTransaction, ...state.transactions],
+                balanceBreakdown: newBreakdown,
+                totalBalance: newTotal,
+                availableBalance: newBreakdown.sendable,
+              };
+            });
+
+            console.log('✅ Wallet: Tokens sent successfully');
+            return localTransaction;
+          } else {
+            throw new Error(response.message || 'Failed to send tokens');
+          }
+        } catch (error) {
+          console.error('❌ Wallet: Send tokens failed:', error);
+          throw error;
         }
-
-        // Create pending transaction
-        const transaction: Transaction = {
-          id: Date.now().toString(),
-          type: 'send',
-          amount: -amount, // Negative for outgoing
-          toAddress,
-          timestamp: Date.now(),
-          status: 'pending',
-          description: description || `Sent to ${toAddress.slice(0, 8)}...`,
-          fee: 0.001, // Mock fee
-        };
-
-        // Add transaction and update balance
-        set((state) => {
-          const newBreakdown = {
-            ...state.balanceBreakdown,
-            sendable: state.balanceBreakdown.sendable - amount - (transaction.fee || 0),
-            pending: state.balanceBreakdown.pending + amount,
-          };
-          const newTotal = newBreakdown.sendable + newBreakdown.nonSendable + newBreakdown.pending;
-
-          return {
-            transactions: [transaction, ...state.transactions],
-            balanceBreakdown: newBreakdown,
-            totalBalance: newTotal,
-            availableBalance: newBreakdown.sendable,
-            pendingBalance: newBreakdown.pending,
-          };
-        });
-
-        // Simulate network delay
-        setTimeout(() => {
-          get().updateTransaction(transaction.id, {
-            status: 'completed',
-            hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-          });
-
-          set((state) => {
-            const newBreakdown = {
-              ...state.balanceBreakdown,
-              pending: state.balanceBreakdown.pending - amount,
-            };
-            const newTotal = newBreakdown.sendable + newBreakdown.nonSendable + newBreakdown.pending;
-
-            return {
-              balanceBreakdown: newBreakdown,
-              totalBalance: newTotal,
-              pendingBalance: newBreakdown.pending,
-            };
-          });
-        }, 3000);
-
-        return transaction;
       },
 
       refreshTransactions: async () => {
@@ -363,10 +429,32 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       getFormattedBalance: (amount: number) => {
         const state = get();
+
+        // Handle NaN or invalid amounts
+        if (isNaN(amount) || amount === null || amount === undefined) {
+          return state.currency === 'USD' ? '$0.00' : '0.0000 CELF';
+        }
+
         if (state.currency === 'USD') {
-          return `$${(amount * state.exchangeRate).toFixed(2)}`;
+          const usdAmount = amount * (state.exchangeRate || 0);
+          return `$${isNaN(usdAmount) ? '0.00' : usdAmount.toFixed(2)}`;
         }
         return `${amount.toFixed(4)} CELF`;
+      },
+
+      // Debug method to log current wallet state
+      debugWalletState: () => {
+        const state = get();
+        console.log('🔍 Wallet Debug State:', {
+          totalBalance: state.totalBalance,
+          balanceBreakdown: state.balanceBreakdown,
+          availableBalance: state.availableBalance,
+          pendingBalance: state.pendingBalance,
+          currentAddress: state.currentAddress,
+          isLoadingBalance: state.isLoadingBalance,
+          miningIntegration: state.miningIntegration,
+          lastSyncTime: new Date(state.miningIntegration.lastSyncTime).toISOString(),
+        });
       },
 
       // Mining integration actions
@@ -385,8 +473,26 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       },
 
       updateMiningEarnings: (earnings: number) => {
+        if (isNaN(earnings) || earnings < 0) {
+          console.warn('⚠️ Wallet: Invalid earnings value:', earnings);
+          return;
+        }
+
         set((state) => {
-          const newDisplayBalance = state.miningIntegration.baseBalance + earnings;
+          const baseBalance = state.miningIntegration.baseBalance || 0;
+          const newDisplayBalance = baseBalance + earnings;
+
+          // Only log significant changes to reduce console spam
+          const currentEarnings = state.miningIntegration.currentSessionEarnings || 0;
+          const earningsDiff = Math.abs(earnings - currentEarnings);
+          if (earningsDiff > 0.001) { // Log only when change is > 0.001 CELF
+            console.log('💰 Wallet: Mining earnings updated:', {
+              previousEarnings: currentEarnings.toFixed(6),
+              newEarnings: earnings.toFixed(6),
+              totalBalance: newDisplayBalance.toFixed(6)
+            });
+          }
+
           return {
             miningIntegration: {
               ...state.miningIntegration,
@@ -440,11 +546,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           // Fetch current balance from backend
           const response = await apiService.getWalletBalance();
           if (response.success && response.data) {
-            const backendBalance = response.data.totalBalance || response.data.total || 0;
+            const { totalBalance, sendableBalance, nonSendableBalance, pendingBalance } = response.data;
+            const backendBalance = totalBalance || 0;
 
             console.log('Wallet: Backend balance received:', backendBalance);
+            console.log('Wallet: Balance breakdown:', { sendableBalance, nonSendableBalance, pendingBalance });
 
             set((state) => ({
+              balanceBreakdown: {
+                sendable: sendableBalance || 0,
+                nonSendable: nonSendableBalance || 0,
+                pending: pendingBalance || 0,
+              },
               miningIntegration: {
                 ...state.miningIntegration,
                 baseBalance: backendBalance,
@@ -453,6 +566,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
                 syncError: null,
               },
               totalBalance: backendBalance + state.miningIntegration.currentSessionEarnings,
+              availableBalance: sendableBalance || 0, // Legacy compatibility
+              pendingBalance: pendingBalance || 0, // Legacy compatibility
               isLoadingBalance: false,
             }));
           } else {

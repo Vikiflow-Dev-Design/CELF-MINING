@@ -5,13 +5,14 @@ const transactionSchema = new mongoose.Schema({
   hash: {
     type: String,
     unique: true,
-    sparse: true // Allows null values while maintaining uniqueness for non-null values
+    sparse: true, // Allows null values while maintaining uniqueness for non-null values
+    index: true
   },
   
   // Transaction type matching mobile app
   type: {
     type: String,
-    enum: ['send', 'receive', 'mining', 'referral', 'exchange'],
+    enum: ['send', 'receive', 'mining', 'referral', 'exchange', 'bonus'],
     required: true
   },
   
@@ -64,7 +65,8 @@ const transactionSchema = new mongoose.Schema({
   sessionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'MiningSession',
-    sparse: true
+    sparse: true,
+    index: true
   },
   miningRate: {
     type: Number,
@@ -147,8 +149,7 @@ transactionSchema.index({ fromUserId: 1, createdAt: -1 });
 transactionSchema.index({ toUserId: 1, createdAt: -1 });
 transactionSchema.index({ type: 1, createdAt: -1 });
 transactionSchema.index({ status: 1 });
-transactionSchema.index({ hash: 1 });
-transactionSchema.index({ sessionId: 1 });
+// hash and sessionId already have indexes from schema definition
 transactionSchema.index({ createdAt: -1 });
 
 // Compound indexes for common queries

@@ -38,13 +38,13 @@ router.delete('/users/:id', adminController.deleteUser);
 router.get('/mining/sessions', adminController.getMiningSessions);
 router.get('/mining/settings', adminController.getMiningSettings);
 router.put('/mining/settings', [
-  body('defaultMiningRate').optional().isFloat({ min: 0.001, max: 1000 }),
+  body('miningRatePerSecond').optional().isFloat({ min: 0.000001, max: 1 }), // 0.000001 to 1 CELF per second
+  body('miningIntervalMs').optional().isInt({ min: 100, max: 10000 }), // 100ms to 10 seconds
   body('maxSessionTime').optional().isInt({ min: 60, max: 86400 }), // 1 minute to 24 hours
-  body('miningSpeed').optional().isFloat({ min: 0.1, max: 100 }),
-  body('rewardMultiplier').optional().isFloat({ min: 0.1, max: 100 }),
   body('maintenanceMode').optional().isBoolean(),
-  body('minTokensToMine').optional().isFloat({ min: 0.001, max: 10 }),
-  body('maxTokensPerSession').optional().isFloat({ min: 1, max: 10000 })
+  body('referralBonus').optional().isFloat({ min: 0, max: 2 }),
+  body('autoClaim').optional().isBoolean(),
+  body('notificationEnabled').optional().isBoolean()
 ], validateRequest, adminController.updateMiningSettings);
 router.post('/mining/sessions/:id/terminate', adminController.terminateMiningSession);
 router.post('/mining/sessions/:id/pause', adminController.pauseMiningSession);

@@ -6,15 +6,58 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useWalletStore } from '@/stores/walletStore';
+import { apiService, UserSearchResult } from '@/services/apiService';
 
 export const useSendTokens = () => {
   const [recipientAddress, setRecipientAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [memo, setMemo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState<UserSearchResult | null>(null);
+  const [isValidatingRecipient, setIsValidatingRecipient] = useState(false);
+  const [recipientValidationError, setRecipientValidationError] = useState<string | null>(null);
 
   const { balanceBreakdown, sendTokens, getFormattedBalance } = useWalletStore();
   const balance = balanceBreakdown.sendable; // Only sendable balance can be sent
+
+  const handleUserSelect = (user: UserSearchResult) => {
+    setSelectedRecipient(user);
+    setRecipientAddress(user.walletAddress || '');
+    setRecipientValidationError(null);
+  };
+
+  const handleAddressEnter = async (address: string) => {
+    setIsValidatingRecipient(true);
+    setRecipientValidationError(null);
+    setSelectedRecipient(null);
+
+    try {
+      const response = await apiService.validateAddress(address);
+      if (response.success && response.data) {
+        const userResult: UserSearchResult = {
+          id: response.data.id,
+          email: response.data.email,
+          firstName: response.data.firstName,
+          lastName: response.data.lastName,
+          walletAddress: response.data.walletAddress,
+        };
+        setSelectedRecipient(userResult);
+        setRecipientAddress(address);
+      } else {
+        setRecipientValidationError(response.message || 'Invalid wallet address');
+      }
+    } catch (error) {
+      setRecipientValidationError('Failed to validate address');
+    } finally {
+      setIsValidatingRecipient(false);
+    }
+  };
+
+  const clearRecipient = () => {
+    setSelectedRecipient(null);
+    setRecipientAddress('');
+    setRecipientValidationError(null);
+  };
 
   const handleSend = async () => {
     if (!recipientAddress || !amount) {
@@ -22,7 +65,17 @@ export const useSendTokens = () => {
       return;
     }
 
+    if (!selectedRecipient) {
+      Alert.alert('Error', 'Please select a valid recipient');
+      return;
+    }
+
     const sendAmount = parseFloat(amount);
+    if (sendAmount <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount');
+      return;
+    }
+
     if (sendAmount > balance) {
       Alert.alert(
         'Insufficient Sendable Balance',
@@ -38,11 +91,26 @@ export const useSendTokens = () => {
     setIsLoading(true);
 
     try {
-      await sendTokens(recipientAddress, sendAmount, memo);
-      setIsLoading(false);
-      Alert.alert('Success', `${getFormattedBalance(sendAmount)} sent successfully!`, [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      const response = await apiService.sendTokens(recipientAddress, sendAmount, memo);
+
+      if (response.success) {
+        // Update local wallet state
+        await sendTokens(recipientAddress, sendAmount, memo);
+
+        setIsLoading(false);
+
+        const recipientName = selectedRecipient
+          ? `${selectedRecipient.firstName} ${selectedRecipient.lastName}`
+          : recipientAddress.slice(0, 8) + '...';
+
+        Alert.alert(
+          'Success',
+          `${getFormattedBalance(sendAmount)} sent successfully to ${recipientName}!`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        throw new Error(response.message || 'Transaction failed');
+      }
     } catch (error) {
       setIsLoading(false);
       Alert.alert('Error', error instanceof Error ? error.message : 'Failed to send tokens');
@@ -72,7 +140,13 @@ export const useSendTokens = () => {
     balanceBreakdown,
     getFormattedBalance,
     isLoading,
+    selectedRecipient,
+    isValidatingRecipient,
+    recipientValidationError,
     handleSend,
+    handleUserSelect,
+    handleAddressEnter,
+    clearRecipient,
     scanQR,
     setMaxAmount,
     openExchange,

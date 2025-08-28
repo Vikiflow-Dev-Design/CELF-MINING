@@ -91,18 +91,31 @@ const PORT = config.port || 5000;
 // Initialize database and start server
 const startServer = async () => {
   try {
-    // Connect to Supabase
-    await database.connect();
+    // Try to connect to MongoDB
+    const connection = await database.connect();
 
-    // Setup event handlers for graceful shutdown
-    database.setupEventHandlers();
+    if (connection) {
+      console.log('✅ MongoDB connection successful');
+      // Setup event handlers for graceful shutdown
+      database.setupEventHandlers();
+    } else {
+      console.warn('⚠️  Starting server without MongoDB connection');
+      console.warn('⚠️  Some features may not work until database is connected');
+    }
 
-    // Start server
+    // Start server regardless of database connection status
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📊 Environment: ${config.nodeEnv}`);
-      console.log(`🗄️  Database: Supabase`);
+      console.log(`🗄️  Database: ${connection ? 'MongoDB (Connected)' : 'MongoDB (Disconnected)'}`);
       console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+
+      if (!connection) {
+        console.log(`⚠️  To fix database connection:`);
+        console.log(`   1. Check MongoDB Atlas IP whitelist`);
+        console.log(`   2. Verify MONGODB_URI in .env file`);
+        console.log(`   3. Check network connectivity`);
+      }
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

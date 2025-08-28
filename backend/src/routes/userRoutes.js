@@ -24,6 +24,83 @@ router.put('/profile', authenticate, updateProfileValidation, validateRequest, u
 router.post('/change-password', authenticate, changePasswordValidation, validateRequest, userController.changePassword);
 router.delete('/account', authenticate, userController.deleteAccount);
 
+// Search and validation routes
+router.get('/search', authenticate, userController.searchUsers);
+router.post('/validate-address', authenticate, [
+  body('address').notEmpty().withMessage('Address is required')
+], validateRequest, userController.validateAddress);
+
+// Test endpoint for debugging (no auth required)
+router.get('/search-test', (req, res) => {
+  console.log('🧪 Test endpoint hit:', req.query);
+  res.json({
+    success: true,
+    message: 'Search test endpoint working',
+    query: req.query,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Search endpoint without authentication for testing
+router.get('/search-no-auth', async (req, res) => {
+  try {
+    const { q: query, limit = 10 } = req.query;
+
+    console.log('🔍 No-auth search request:', { query, limit });
+
+    if (!query || query.trim().length < 2) {
+      return res.json({ success: true, message: 'Query too short', data: [] });
+    }
+
+    // Return mock users for testing
+    const mockUsers = [
+      {
+        id: 'mock-1',
+        email: 'victor@example.com',
+        firstName: 'Victor',
+        lastName: 'Ezekiel',
+        walletAddress: 'celf1234567890abcdef1234567890abcdef12345678'
+      },
+      {
+        id: 'mock-2',
+        email: 'john.doe@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        walletAddress: 'celf9876543210fedcba9876543210fedcba87654321'
+      },
+      {
+        id: 'mock-3',
+        email: 'jane.smith@example.com',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        walletAddress: 'celfabcdef1234567890abcdef1234567890abcdef12'
+      }
+    ];
+
+    // Filter based on query
+    const filteredUsers = mockUsers.filter(user => {
+      const searchLower = query.toLowerCase();
+      return (
+        user.firstName.toLowerCase().includes(searchLower) ||
+        user.lastName.toLowerCase().includes(searchLower) ||
+        user.email.toLowerCase().includes(searchLower) ||
+        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchLower)
+      );
+    });
+
+    console.log('✅ Returning filtered mock users:', filteredUsers);
+    res.json({ success: true, message: 'Users found', data: filteredUsers.slice(0, limit) });
+  } catch (error) {
+    console.error('❌ Search error:', error);
+    res.status(500).json({ success: false, message: 'Search failed: ' + error.message });
+  }
+});
+
+// User search and lookup routes for token sending
+router.get('/search', authenticate, userController.searchUsers);
+router.get('/validate-address/:address', authenticate, userController.validateAddress);
+router.get('/by-address/:address', authenticate, userController.getUserByAddress);
+
 // Validation for multiple user deletion
 const deleteMultipleUsersValidation = [
   body('userIds').isArray({ min: 1 }).withMessage('User IDs array is required and cannot be empty'),

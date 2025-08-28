@@ -4,11 +4,12 @@ const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 5000,
   
-  // Supabase configuration
-  supabase: {
-    url: process.env.SUPABASE_URL || '',
-    anonKey: process.env.SUPABASE_ANON_KEY || '',
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+  // MongoDB configuration
+  mongodb: {
+    uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/celf-mining',
+    options: {
+      // Modern MongoDB driver doesn't need these deprecated options
+    }
   },
   
   // JWT configuration

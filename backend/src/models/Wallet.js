@@ -21,7 +21,8 @@ const walletSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    unique: true
+    unique: true,
+    index: true
   },
   
   // Balance breakdown matching mobile app structure
@@ -110,9 +111,7 @@ const walletSchema = new mongoose.Schema({
   }
 });
 
-// Indexes
-walletSchema.index({ userId: 1 });
-walletSchema.index({ 'addresses.address': 1 });
+// Indexes (userId already has unique index from schema definition)
 walletSchema.index({ currentAddress: 1 });
 
 // Virtual for available balance (legacy compatibility)
@@ -131,6 +130,11 @@ walletSchema.pre('save', function(next) {
 walletSchema.methods.addMiningReward = function(amount) {
   this.nonSendableBalance += amount;
   this.totalMined += amount;
+  return this.save();
+};
+
+walletSchema.methods.addWelcomeBonus = function(amount) {
+  this.nonSendableBalance += amount;
   return this.save();
 };
 

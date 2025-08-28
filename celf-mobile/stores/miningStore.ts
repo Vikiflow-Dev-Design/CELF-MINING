@@ -64,6 +64,7 @@ export const useMiningStore = create<MiningState>((set, get) => ({
   countdown: '24h 0m 0s',
   tokensPerSecond: 0.125 / 3600,
   isLoading: false,
+  isInitialized: false,
 
   // Session data (will be saved to database later)
   sessions: [],
@@ -147,7 +148,11 @@ export const useMiningStore = create<MiningState>((set, get) => ({
       },
 
       updateMiningState: (isMining: boolean) => {
-        set({ isMining });
+        const state = get();
+        // Only update if initialized to prevent initialization flash
+        if (state.isInitialized) {
+          set({ isMining });
+        }
       },
 
       addSession: (session: MiningSession) => {
@@ -200,18 +205,23 @@ export const useMiningStore = create<MiningState>((set, get) => ({
           console.log('Mining Store: State from service:', miningState);
 
           // Update store with restored session data
+          // Only set isMining to true if there's actually an active session with a sessionId
+          const hasActiveSession = miningState.isMining && miningState.sessionId;
+
           set({
-            isMining: miningState.isMining,
+            isMining: hasActiveSession,
             totalEarned: miningState.totalEarned,
             runtime: miningState.runtime,
             countdown: miningState.countdown,
             miningRate: miningState.miningRate,
             tokensPerSecond: miningState.tokensPerSecond,
             isLoading: false,
+            isInitialized: true, // Mark as initialized to allow state updates
           });
 
           console.log('Mining Store: Initialized successfully:', {
-            isMining: miningState.isMining,
+            isMining: hasActiveSession,
+            hasSessionId: !!miningState.sessionId,
             totalEarned: miningState.totalEarned,
             runtime: miningState.runtime
           });
@@ -219,6 +229,7 @@ export const useMiningStore = create<MiningState>((set, get) => ({
           console.error('Mining Store: Failed to initialize:', error);
           set({
             isLoading: false,
+            isInitialized: true, // Mark as initialized even on error
             // Set safe default values on error
             isMining: false,
             totalEarned: 0,

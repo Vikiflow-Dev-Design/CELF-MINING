@@ -35,6 +35,14 @@ export const validateExchangeAmount = (
   amount: string,
   maxAmount: number
 ): { isValid: boolean; message?: string } => {
+  // Check if there are any tokens available to exchange
+  if (maxAmount <= 0) {
+    return {
+      isValid: false,
+      message: 'No tokens available to exchange in this direction. Try switching the exchange direction.',
+    };
+  }
+
   const numAmount = parseFloat(amount);
 
   if (isNaN(numAmount) || numAmount <= 0) {

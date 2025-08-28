@@ -1,11 +1,11 @@
 const bcrypt = require('bcryptjs');
-const supabaseService = require('../services/supabaseService');
+const mongodbService = require('../services/mongodbService');
 const { createResponse } = require('../utils/responseUtils');
 
 class UserController {
   async getProfile(req, res, next) {
     try {
-      const user = await supabaseService.findUserById(req.user.userId);
+      const user = await mongodbService.findUserById(req.user.userId);
 
       if (!user) {
         return res.status(404).json(createResponse(false, 'User not found'));
@@ -18,11 +18,11 @@ class UserController {
         user: {
           id: userProfile.id,
           email: userProfile.email,
-          firstName: userProfile.first_name,
-          lastName: userProfile.last_name,
+          firstName: userProfile.firstName,
+          lastName: userProfile.lastName,
           role: userProfile.role,
-          isActive: userProfile.is_active,
-          createdAt: userProfile.created_at,
+          isActive: userProfile.isActive,
+          createdAt: userProfile.createdAt,
           preferences: userProfile.preferences
         }
       }));
@@ -38,7 +38,7 @@ class UserController {
 
       // Check if email is being changed and if it's already taken
       if (email) {
-        const existingUser = await supabaseService.findUserByEmail(email);
+        const existingUser = await mongodbService.findUserByEmail(email);
         if (existingUser && existingUser.id !== userId) {
           return res.status(400).json(createResponse(false, 'Email is already taken'));
         }
@@ -49,7 +49,7 @@ class UserController {
       if (lastName) updateData.last_name = lastName;
       if (email) updateData.email = email;
 
-      const updatedUser = await supabaseService.updateUser(userId, updateData);
+      const updatedUser = await mongodbService.updateUser(userId, updateData);
 
       res.json(createResponse(true, 'Profile updated successfully', {
         user: {
@@ -70,7 +70,7 @@ class UserController {
       const { currentPassword, newPassword } = req.body;
       const userId = req.user.userId;
 
-      const user = await supabaseService.findUserById(userId);
+      const user = await mongodbService.findUserById(userId);
       if (!user) {
         return res.status(404).json(createResponse(false, 'User not found'));
       }
@@ -83,7 +83,7 @@ class UserController {
 
       // Hash new password
       const hashedNewPassword = await bcrypt.hash(newPassword, 12);
-      await supabaseService.updateUser(userId, { password: hashedNewPassword });
+      await mongodbService.updateUser(userId, { password: hashedNewPassword });
 
       res.json(createResponse(true, 'Password changed successfully'));
     } catch (error) {
@@ -96,10 +96,10 @@ class UserController {
       const userId = req.user.userId;
 
       // Get deletion preview first
-      const preview = await supabaseService.getUserDeletionPreview(userId);
+      const preview = await mongodbService.getUserDeletionPreview(userId);
 
       // Delete the user account
-      const result = await supabaseService.deleteUser(userId);
+      const result = await mongodbService.deleteUser(userId);
 
       res.json(createResponse(true, 'Account deleted successfully', {
         deletedUser: result.deletedUser,
@@ -107,6 +107,133 @@ class UserController {
         preview: preview.relatedData
       }));
     } catch (error) {
+      next(error);
+    }
+  }
+
+  // User search and lookup methods for token sending
+  async searchUsers(req, res, next) {
+    try {
+      const { query, limit = 10 } = req.query;
+
+      if (!query || query.trim().length < 2) {
+        return res.json(createResponse(true, 'Search results', []));
+      }
+
+      const users = await mongodbService.searchUsers(query, parseInt(limit));
+
+      res.json(createResponse(true, 'Users found', users));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async validateAddress(req, res, next) {
+    try {
+      const { address } = req.params;
+
+      const validation = await mongodbService.validateWalletAddress(address);
+
+      if (validation.isValid) {
+        res.json(createResponse(true, 'Address is valid', validation.user));
+      } else {
+        res.status(400).json(createResponse(false, validation.message));
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getUserByAddress(req, res, next) {
+    try {
+      const { address } = req.params;
+
+      const user = await mongodbService.findUserByWalletAddress(address);
+
+      if (!user) {
+        return res.status(404).json(createResponse(false, 'User not found'));
+      }
+
+      res.json(createResponse(true, 'User found', {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        walletAddress: address
+      }));
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Search and validation routes
+  async searchUsers(req, res, next) {
+    try {
+      const { q: query, limit = 10 } = req.query;
+
+      console.log('🔍 UserController: Search request received:', {
+        query,
+        limit,
+        headers: req.headers,
+        method: req.method,
+        url: req.url
+      });
+
+      if (!query || query.trim().length < 2) {
+        console.log('❌ Query too short:', query);
+        return res.json(createResponse(true, 'Search query too short', []));
+      }
+
+      console.log('🔍 Calling mongodbService.searchUsers with:', query.trim());
+      const users = await mongodbService.searchUsers(query.trim(), parseInt(limit));
+
+      console.log('✅ Raw users from database:', users);
+
+      // Format users for search results
+      const searchResults = users.map(user => {
+        console.log('📝 Processing user:', user);
+        return {
+          id: user.id || user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          walletAddress: user.wallets?.[0]?.currentAddress || user.currentAddress || null
+        };
+      });
+
+      console.log('✅ Formatted search results:', searchResults);
+      console.log('📤 Sending response with:', { success: true, message: 'Users found', data: searchResults });
+
+      res.json(createResponse(true, 'Users found', searchResults));
+    } catch (error) {
+      console.error('❌ Search users error:', error);
+      res.status(500).json(createResponse(false, 'Search failed: ' + error.message));
+    }
+  }
+
+  async validateAddress(req, res, next) {
+    try {
+      const { address } = req.body;
+
+      if (!address || !address.startsWith('celf')) {
+        return res.status(400).json(createResponse(false, 'Invalid address format'));
+      }
+
+      const user = await mongodbService.findUserByWalletAddress(address);
+
+      if (!user) {
+        return res.status(404).json(createResponse(false, 'Address not found'));
+      }
+
+      res.json(createResponse(true, 'Address validated', {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        walletAddress: address
+      }));
+    } catch (error) {
+      console.error('Validate address error:', error);
       next(error);
     }
   }
@@ -200,7 +327,7 @@ class UserController {
       const { id } = req.params;
 
       // Check if user exists and get preview
-      const preview = await supabaseService.getUserDeletionPreview(id);
+      const preview = await mongodbService.getUserDeletionPreview(id);
 
       // Prevent deletion of admin users by non-super-admin
       if (preview.user.role === 'admin' && req.user.role !== 'super-admin') {
@@ -213,7 +340,7 @@ class UserController {
       }
 
       // Delete the user
-      const result = await supabaseService.deleteUser(id);
+      const result = await mongodbService.deleteUser(id);
 
       res.json(createResponse(true, 'User deleted successfully', {
         deletedUser: result.deletedUser,
@@ -255,7 +382,7 @@ class UserController {
         const usersToCheck = await Promise.all(
           userIds.map(async (id) => {
             try {
-              const user = await supabaseService.findUserById(id);
+              const user = await mongodbService.findUserById(id);
               return user;
             } catch (error) {
               return null;
@@ -270,7 +397,7 @@ class UserController {
       }
 
       // Delete multiple users
-      const result = await supabaseService.deleteMultipleUsers(userIds);
+      const result = await mongodbService.deleteMultipleUsers(userIds);
 
       res.json(createResponse(true, 'Multiple users deletion completed', {
         summary: result.summary,
@@ -299,7 +426,7 @@ class UserController {
       }
 
       // Delete all users
-      const result = await supabaseService.deleteAllUsers({
+      const result = await mongodbService.deleteAllUsers({
         excludeAdmins,
         confirmationToken
       });
@@ -321,7 +448,7 @@ class UserController {
     try {
       const { id } = req.params;
 
-      const preview = await supabaseService.getUserDeletionPreview(id);
+      const preview = await mongodbService.getUserDeletionPreview(id);
 
       res.json(createResponse(true, 'User deletion preview retrieved', preview));
     } catch (error) {

@@ -25,9 +25,15 @@ export const formatTime = (seconds: number): string => {
 };
 
 /**
- * Calculate tokens per second from mining rate
+ * Calculate tokens per second from mining rate (backward compatibility)
+ * @param miningRate - Mining rate in CELF per hour
  */
 export const calculateTokensPerSecond = (miningRate: number): number => {
+  // If miningRate is already very small (< 0.01), assume it's already per-second
+  if (miningRate < 0.01) {
+    return miningRate;
+  }
+  // Otherwise convert from hourly to per-second
   return miningRate / 3600;
 };
 

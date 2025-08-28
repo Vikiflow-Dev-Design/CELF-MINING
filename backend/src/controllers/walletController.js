@@ -1,23 +1,23 @@
-const supabaseService = require('../services/supabaseService');
+const mongodbService = require('../services/mongodbService');
 const { createResponse } = require('../utils/responseUtils');
 
 class WalletController {
   async getBalance(req, res, next) {
     try {
       const userId = req.user.userId;
-      const wallet = await supabaseService.findWalletByUserId(userId);
+      const wallet = await mongodbService.findWalletByUserId(userId);
 
       if (!wallet) {
         return res.status(404).json(createResponse(false, 'Wallet not found'));
       }
 
       res.json(createResponse(true, 'Balance retrieved successfully', {
-        totalBalance: parseFloat(wallet.total_balance),
-        sendableBalance: parseFloat(wallet.sendable_balance),
-        nonSendableBalance: parseFloat(wallet.non_sendable_balance),
-        pendingBalance: parseFloat(wallet.pending_balance),
-        currentAddress: wallet.current_address,
-        lastActivity: wallet.last_activity
+        totalBalance: parseFloat(wallet.totalBalance),
+        sendableBalance: parseFloat(wallet.sendableBalance),
+        nonSendableBalance: parseFloat(wallet.nonSendableBalance),
+        pendingBalance: parseFloat(wallet.pendingBalance),
+        currentAddress: wallet.currentAddress,
+        lastActivity: wallet.lastActivity
       }));
     } catch (error) {
       next(error);
@@ -179,46 +179,82 @@ class WalletController {
       const userId = req.user.userId;
       const { toAddress, amount, description } = req.body;
 
-      const wallet = await Wallet.findOne({ userId });
-      if (!wallet) {
-        return res.status(404).json(createResponse(false, 'Wallet not found'));
+      // Find sender wallet
+      const senderWallet = await mongodbService.findWalletByUserId(userId);
+      if (!senderWallet) {
+        return res.status(404).json(createResponse(false, 'Sender wallet not found'));
       }
 
-      if (amount > wallet.sendableBalance) {
+      // Validate sender has sufficient sendable balance
+      if (amount > senderWallet.sendableBalance) {
         return res.status(400).json(createResponse(false, 'Insufficient sendable balance'));
       }
 
-      // Create transaction
-      const transaction = new Transaction({
+      // Find and validate recipient
+      const recipient = await mongodbService.findUserByWalletAddress(toAddress);
+      if (!recipient) {
+        return res.status(404).json(createResponse(false, 'Recipient wallet address not found'));
+      }
+
+      const recipientWallet = recipient.wallet;
+      if (!recipientWallet) {
+        return res.status(404).json(createResponse(false, 'Recipient wallet not found'));
+      }
+
+      // Prevent self-sending
+      if (userId === recipient.id) {
+        return res.status(400).json(createResponse(false, 'Cannot send tokens to yourself'));
+      }
+
+      // Create sender transaction (debit)
+      const senderTransaction = await mongodbService.createTransaction({
         fromUserId: userId,
+        toUserId: recipient.id,
         toAddress,
         amount,
         type: 'send',
-        status: 'pending',
-        description: description || `Sent to ${toAddress.slice(0, 8)}...`,
-        fee: 0.001 // Mock fee
+        status: 'completed',
+        description: description || `Sent to ${recipient.firstName} ${recipient.lastName}`,
+        fee: 0 // No fees as requested
       });
 
-      await transaction.save();
+      // Create recipient transaction (credit)
+      const recipientTransaction = await mongodbService.createTransaction({
+        fromUserId: userId,
+        toUserId: recipient.id,
+        toAddress,
+        amount,
+        type: 'receive',
+        status: 'completed',
+        description: description || `Received from ${senderWallet.userId}`,
+        fee: 0
+      });
 
-      // Update wallet balance
-      wallet.sendableBalance -= (amount + transaction.fee);
-      wallet.pendingBalance += amount;
-      wallet.totalBalance = wallet.sendableBalance + wallet.nonSendableBalance + wallet.pendingBalance;
-      await wallet.save();
+      // Update sender wallet (deduct from sendable balance)
+      const newSenderSendableBalance = senderWallet.sendableBalance - amount;
+      await mongodbService.updateWallet(senderWallet.id, {
+        sendableBalance: newSenderSendableBalance,
+        totalBalance: newSenderSendableBalance + senderWallet.nonSendableBalance + senderWallet.pendingBalance,
+        totalSent: (senderWallet.totalSent || 0) + amount,
+        lastActivity: new Date()
+      });
 
-      // Simulate transaction processing
-      setTimeout(async () => {
-        transaction.status = 'completed';
-        transaction.hash = `0x${Math.random().toString(16).substr(2, 64)}`;
-        await transaction.save();
+      // Update recipient wallet (add to sendable balance)
+      const newRecipientSendableBalance = recipientWallet.sendableBalance + amount;
+      await mongodbService.updateWallet(recipientWallet.id, {
+        sendableBalance: newRecipientSendableBalance,
+        totalBalance: newRecipientSendableBalance + recipientWallet.nonSendableBalance + recipientWallet.pendingBalance,
+        totalReceived: (recipientWallet.totalReceived || 0) + amount,
+        lastActivity: new Date()
+      });
 
-        wallet.pendingBalance -= amount;
-        wallet.totalBalance = wallet.sendableBalance + wallet.nonSendableBalance + wallet.pendingBalance;
-        await wallet.save();
-      }, 3000);
-
-      res.status(201).json(createResponse(true, 'Transaction initiated successfully', { transaction }));
+      res.status(201).json(createResponse(true, 'Transaction completed successfully', {
+        transaction: senderTransaction,
+        recipient: {
+          name: `${recipient.firstName} ${recipient.lastName}`,
+          address: toAddress
+        }
+      }));
     } catch (error) {
       next(error);
     }
@@ -229,7 +265,7 @@ class WalletController {
       const userId = req.user.userId;
       const { amount, fromType, toType } = req.body;
 
-      const wallet = await Wallet.findOne({ userId });
+      const wallet = await mongodbService.findWalletByUserId(userId);
       if (!wallet) {
         return res.status(404).json(createResponse(false, 'Wallet not found'));
       }
@@ -246,22 +282,31 @@ class WalletController {
         return res.status(400).json(createResponse(false, 'Insufficient non-sendable balance'));
       }
 
-      // Perform exchange
+      // Calculate new balances
+      let newSendableBalance = wallet.sendableBalance;
+      let newNonSendableBalance = wallet.nonSendableBalance;
+
       if (fromType === 'sendable' && toType === 'nonSendable') {
-        wallet.sendableBalance -= amount;
-        wallet.nonSendableBalance += amount;
+        newSendableBalance -= amount;
+        newNonSendableBalance += amount;
       } else if (fromType === 'nonSendable' && toType === 'sendable') {
-        wallet.nonSendableBalance -= amount;
-        wallet.sendableBalance += amount;
+        newNonSendableBalance -= amount;
+        newSendableBalance += amount;
       }
 
-      await wallet.save();
+      // Update wallet using mongodbService
+      const updatedWallet = await mongodbService.updateWallet(wallet.id, {
+        sendableBalance: newSendableBalance,
+        nonSendableBalance: newNonSendableBalance,
+        totalBalance: newSendableBalance + newNonSendableBalance + wallet.pendingBalance,
+        lastActivity: new Date()
+      });
 
       res.json(createResponse(true, 'Token exchange completed successfully', {
         newBalance: {
-          sendable: wallet.sendableBalance,
-          nonSendable: wallet.nonSendableBalance,
-          total: wallet.totalBalance
+          sendable: updatedWallet.sendableBalance,
+          nonSendable: updatedWallet.nonSendableBalance,
+          total: updatedWallet.totalBalance
         }
       }));
     } catch (error) {
@@ -289,18 +334,24 @@ class WalletController {
       const userId = req.user.userId;
       const { amount, sessionId } = req.body;
 
-      const wallet = await Wallet.findOne({ userId });
+      const wallet = await mongodbService.findWalletByUserId(userId);
       if (!wallet) {
         return res.status(404).json(createResponse(false, 'Wallet not found'));
       }
 
       // Add mining reward to non-sendable balance
-      wallet.nonSendableBalance += amount;
-      wallet.totalBalance = wallet.sendableBalance + wallet.nonSendableBalance + wallet.pendingBalance;
-      await wallet.save();
+      const newNonSendableBalance = wallet.nonSendableBalance + amount;
+      const newTotalBalance = wallet.sendableBalance + newNonSendableBalance + wallet.pendingBalance;
+
+      await mongodbService.updateWallet(wallet.id, {
+        nonSendableBalance: newNonSendableBalance,
+        totalBalance: newTotalBalance,
+        totalMined: (wallet.totalMined || 0) + amount,
+        lastActivity: new Date()
+      });
 
       // Create transaction record
-      const transaction = new Transaction({
+      const transaction = await mongodbService.createTransaction({
         toUserId: userId,
         amount,
         type: 'mining',
@@ -309,10 +360,8 @@ class WalletController {
         sessionId
       });
 
-      await transaction.save();
-
       res.json(createResponse(true, 'Mining reward added successfully', {
-        newBalance: wallet.totalBalance,
+        newBalance: newTotalBalance,
         transaction
       }));
     } catch (error) {
@@ -324,26 +373,26 @@ class WalletController {
     try {
       const userId = req.user.userId;
 
-      const wallet = await Wallet.findOne({ userId });
+      const wallet = await mongodbService.findWalletByUserId(userId);
       if (!wallet) {
         return res.status(404).json(createResponse(false, 'Wallet not found'));
       }
 
-      const totalTransactions = await Transaction.countDocuments({
+      const totalTransactions = await mongodbService.count('Transaction', {
         $or: [{ fromUserId: userId }, { toUserId: userId }]
       });
 
-      const totalSent = await Transaction.aggregate([
+      const totalSent = await mongodbService.aggregate('Transaction', [
         { $match: { fromUserId: userId, type: 'send', status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);
 
-      const totalReceived = await Transaction.aggregate([
+      const totalReceived = await mongodbService.aggregate('Transaction', [
         { $match: { toUserId: userId, type: 'receive', status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);
 
-      const totalMined = await Transaction.aggregate([
+      const totalMined = await mongodbService.aggregate('Transaction', [
         { $match: { toUserId: userId, type: 'mining', status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]);

@@ -139,7 +139,7 @@ const miningSessionSchema = new mongoose.Schema({
     },
     data: mongoose.Schema.Types.Mixed
   }],
-  errors: [{
+  sessionErrors: [{
     timestamp: {
       type: Date,
       default: Date.now
@@ -259,13 +259,13 @@ miningSessionSchema.methods.addLog = function(level, message, data = null) {
 };
 
 miningSessionSchema.methods.addError = function(code, message, stack = null) {
-  this.errors.push({
+  this.sessionErrors.push({
     code,
     message,
     stack,
     timestamp: new Date()
   });
-  
+
   return this.save();
 };
 

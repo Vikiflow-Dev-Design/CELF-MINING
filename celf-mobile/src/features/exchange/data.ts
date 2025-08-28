@@ -30,6 +30,7 @@ export const EXCHANGE_VALIDATION_MESSAGES = {
   invalidAmount: 'Please enter a valid amount',
   insufficientBalance: 'Insufficient balance for this exchange',
   zeroAmount: 'Amount must be greater than zero',
+  noTokensAvailable: 'No tokens available to exchange in this direction',
   successToSendable: 'Successfully converted to sendable balance',
   successToNonSendable: 'Successfully converted to non-sendable balance',
 } as const;

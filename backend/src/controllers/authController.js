@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
-const supabaseService = require('../services/supabaseService');
+const mongodbService = require('../services/mongodbService');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../utils/tokenUtils');
 const { createResponse } = require('../utils/responseUtils');
 const {
@@ -60,44 +60,52 @@ class AuthController {
       console.log('✅ Validation passed');
 
       // Check if user already exists
-      const existingUser = await supabaseService.findUserByEmail(sanitizedData.email);
+      const existingUser = await mongodbService.findUserByEmail(sanitizedData.email);
       if (existingUser) {
         console.log('❌ User already exists with email:', sanitizedData.email);
         return res.status(400).json(createResponse(false, 'User already exists with this email'));
       }
 
-      // Hash password
-      const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(sanitizedData.password, saltRounds);
-      console.log('🔐 Password hashed successfully');
-
-      // Create user in database
+      // Create user in database (password will be hashed by User model pre-save hook)
       const userData = {
         email: sanitizedData.email,
-        password: hashedPassword,
-        first_name: sanitizedData.firstName,
-        last_name: sanitizedData.lastName,
+        password: sanitizedData.password, // Plain password - let the model hash it
+        firstName: sanitizedData.firstName,
+        lastName: sanitizedData.lastName,
         role: 'user',
-        is_active: true
+        isActive: true
       };
 
-      const user = await supabaseService.createUser(userData);
+      console.log('🔐 Password will be hashed by User model pre-save hook');
 
-      // Create wallet for the user
+      const user = await mongodbService.createUser(userData);
+
+      // Create wallet for the user with 10 CELF welcome bonus
       const walletData = {
-        user_id: user.id,
-        sendable_balance: 0, // No registration bonus
-        non_sendable_balance: 0,
-        pending_balance: 0,
-        current_address: `celf${Math.random().toString(36).substr(2, 40)}`,
-        addresses: JSON.stringify([{
+        userId: user.id,
+        sendableBalance: 0,
+        nonSendableBalance: 10, // 10 CELF welcome bonus for testing
+        pendingBalance: 0,
+        currentAddress: `celf${Math.random().toString(36).substr(2, 40)}`,
+        addresses: [{
           address: `celf${Math.random().toString(36).substr(2, 40)}`,
           label: 'Main Wallet',
-          isDefault: true
-        }])
+          isActive: true
+        }]
       };
 
-      await supabaseService.createWallet(walletData);
+      const wallet = await mongodbService.createWallet(walletData);
+
+      // Create a transaction record for the welcome bonus
+      const Transaction = require('../models/Transaction');
+      const welcomeTransaction = new Transaction({
+        toUserId: user.id,
+        amount: 10,
+        type: 'bonus',
+        status: 'completed',
+        description: 'Welcome bonus - 10 CELF tokens for testing'
+      });
+      await welcomeTransaction.save();
 
       res.status(201).json(createResponse(true, 'User registered successfully', {
         user: {
@@ -143,38 +151,47 @@ class AuthController {
       console.log('✅ Login validation passed');
 
       // Find user by email
-      const user = await supabaseService.findUserByEmail(sanitizedData.email);
+      const user = await mongodbService.findUserByEmail(sanitizedData.email);
       if (!user) {
         console.log('❌ User not found for email:', sanitizedData.email);
         return res.status(401).json(createResponse(false, 'Invalid email or password'));
       }
 
-      // Check password
-      const isPasswordValid = await bcrypt.compare(sanitizedData.password, user.password);
+      // Check if user has a password field
+      if (!user.password) {
+        console.log('❌ User has no password field - account may need to be recreated');
+        return res.status(401).json(createResponse(false, 'Account authentication error. Please contact support or recreate your account.'));
+      }
+
+      // Use the User model's built-in comparePassword method
+      const isPasswordValid = await user.comparePassword(sanitizedData.password);
+
       if (!isPasswordValid) {
         console.log('❌ Invalid password for user:', sanitizedData.email);
         return res.status(401).json(createResponse(false, 'Invalid email or password'));
       }
 
       // Check if user is active
-      if (!user.is_active) {
+      if (!user.isActive) {
         return res.status(401).json(createResponse(false, 'Account is deactivated'));
       }
 
       // Generate tokens
-      const token = generateToken({ userId: user.id });
-      const refreshToken = generateRefreshToken({ userId: user.id });
+      const token = generateToken({ userId: user._id });
+      const refreshToken = generateRefreshToken({ userId: user._id });
 
-      // Update last login
-      await supabaseService.updateUser(user.id, { last_login: new Date().toISOString() });
+      // Update last login using the mongoose document method
+      await user.updateLastLogin();
 
       res.json(createResponse(true, 'Login successful', {
         user: {
-          id: user.id,
+          id: user._id,
           email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          isActive: user.isActive,
+          lastLogin: new Date()
         },
         token,
         refreshToken
@@ -190,7 +207,7 @@ class AuthController {
       const { userId, email, role } = req.user;
 
       // Get full user details from database
-      const user = await supabaseService.findUserById(userId);
+      const user = await mongodbService.findUserById(userId);
 
       if (!user) {
         return res.status(401).json(createResponse(false, 'User not found'));
@@ -227,7 +244,7 @@ class AuthController {
       }
 
       const decoded = verifyRefreshToken(refreshToken);
-      const user = await supabaseService.findUserById(decoded.userId);
+      const user = await mongodbService.findUserById(decoded.userId);
 
       if (!user) {
         return res.status(401).json(createResponse(false, 'Invalid refresh token'));

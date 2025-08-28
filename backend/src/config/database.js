@@ -1,99 +1,103 @@
-const { createClient } = require('@supabase/supabase-js');
+const mongoose = require('mongoose');
 const config = require('./config');
 
 class Database {
   constructor() {
-    this.supabase = null;
-    this.adminSupabase = null;
+    this.connection = null;
+    this.isConnected = false;
   }
 
   /**
-   * Initialize Supabase clients
+   * Initialize MongoDB connection with retry logic
    */
-  async connect() {
+  async connect(retryCount = 0, maxRetries = 3) {
     try {
-      const { url, anonKey, serviceRoleKey } = config.supabase;
+      const { uri, options } = config.mongodb;
 
-      if (!url || !anonKey || !serviceRoleKey) {
-        throw new Error('Missing Supabase configuration. Please check your environment variables.');
+      if (!uri) {
+        throw new Error('Missing MongoDB configuration. Please check your MONGODB_URI environment variable.');
       }
 
-      // Create client for general operations (with anon key)
-      this.supabase = createClient(url, anonKey);
-
-      // Create admin client for privileged operations (with service role key)
-      this.adminSupabase = createClient(url, serviceRoleKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+      // Connect to MongoDB
+      this.connection = await mongoose.connect(uri, {
+        ...options,
+        // Connection options for better performance and reliability
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        bufferCommands: false
+        // Note: bufferMaxEntries is deprecated and not supported in newer MongoDB versions
       });
 
-      console.log(`🗄️  Connected to Supabase: ${url}`);
+      this.isConnected = true;
+      console.log(`🗄️  Connected to MongoDB: ${uri.replace(/\/\/.*@/, '//***:***@')}`);
 
       // Test the connection
       await this.testConnection();
 
-      return this.supabase;
+      return this.connection;
     } catch (error) {
-      console.error('❌ Supabase connection error:', error);
-      process.exit(1);
+      console.error(`❌ MongoDB connection error (attempt ${retryCount + 1}/${maxRetries + 1}):`, error.message);
+      this.isConnected = false;
+
+      if (retryCount < maxRetries) {
+        console.log(`🔄 Retrying MongoDB connection in 3 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return this.connect(retryCount + 1, maxRetries);
+      } else {
+        console.warn('⚠️  MongoDB connection failed after all retries. Server will start without database connection.');
+        console.warn('⚠️  Please check your MongoDB Atlas IP whitelist and network connection.');
+        return null; // Allow server to start without DB connection
+      }
     }
   }
 
   /**
-   * Test Supabase connection
+   * Test MongoDB connection
    */
   async testConnection() {
     try {
-      const { data, error } = await this.supabase
-        .from('users')
-        .select('count')
-        .limit(1);
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 = table doesn't exist, which is fine
-        throw error;
-      }
-
-      console.log('✅ Supabase connection test successful');
+      // Test connection by pinging the database
+      await mongoose.connection.db.admin().ping();
+      console.log('✅ MongoDB connection test successful');
     } catch (error) {
-      console.warn('⚠️  Supabase connection test failed (this is normal if tables don\'t exist yet):', error.message);
+      console.error('⚠️  MongoDB connection test failed:', error.message);
+      throw error;
     }
   }
 
   /**
-   * Disconnect from Supabase (cleanup)
+   * Disconnect from MongoDB (cleanup)
    */
   async disconnect() {
     try {
-      // Supabase doesn't require explicit disconnection like MongoDB
-      // Just clear the references
-      this.supabase = null;
-      this.adminSupabase = null;
-      console.log('🗄️  Disconnected from Supabase');
+      if (this.connection) {
+        await mongoose.disconnect();
+        this.connection = null;
+        this.isConnected = false;
+        console.log('🗄️  Disconnected from MongoDB');
+      }
     } catch (error) {
-      console.error('❌ Supabase disconnection error:', error);
+      console.error('❌ MongoDB disconnection error:', error);
+      throw error;
     }
   }
 
   /**
-   * Get Supabase client (for general operations)
+   * Get MongoDB connection (for general operations)
    */
   getClient() {
-    if (!this.supabase) {
-      throw new Error('Supabase client not initialized. Call connect() first.');
+    if (!this.connection || !this.isConnected) {
+      throw new Error('MongoDB client not initialized. Call connect() first.');
     }
-    return this.supabase;
+    return this.connection;
   }
 
   /**
-   * Get Supabase admin client (for privileged operations)
+   * Get MongoDB connection (admin operations use same connection)
    */
   getAdminClient() {
-    if (!this.adminSupabase) {
-      throw new Error('Supabase admin client not initialized. Call connect() first.');
-    }
-    return this.adminSupabase;
+    return this.getClient();
   }
 
   /**
@@ -101,9 +105,11 @@ class Database {
    */
   getConnectionStatus() {
     return {
-      state: this.supabase ? 'connected' : 'disconnected',
-      url: config.supabase.url,
-      hasAdminClient: !!this.adminSupabase
+      state: this.isConnected ? 'connected' : 'disconnected',
+      readyState: mongoose.connection.readyState,
+      host: mongoose.connection.host,
+      port: mongoose.connection.port,
+      name: mongoose.connection.name
     };
   }
 
@@ -111,38 +117,49 @@ class Database {
    * Setup process event handlers for graceful shutdown
    */
   setupEventHandlers() {
+    // MongoDB connection events
+    mongoose.connection.on('connected', () => {
+      console.log('🗄️  MongoDB connected');
+      this.isConnected = true;
+    });
+
+    mongoose.connection.on('error', (error) => {
+      console.error('❌ MongoDB connection error:', error);
+      this.isConnected = false;
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('🗄️  MongoDB disconnected');
+      this.isConnected = false;
+    });
+
     // Application termination
     process.on('SIGINT', async () => {
+      console.log('🔄 Gracefully shutting down...');
       await this.disconnect();
       process.exit(0);
     });
 
     process.on('SIGTERM', async () => {
+      console.log('🔄 Gracefully shutting down...');
       await this.disconnect();
       process.exit(0);
     });
   }
 
   /**
-   * Health check for Supabase connection
+   * Health check for MongoDB connection
    */
   async healthCheck() {
     try {
       const status = this.getConnectionStatus();
 
       if (status.state !== 'connected') {
-        throw new Error(`Supabase not connected. Current state: ${status.state}`);
+        throw new Error(`MongoDB not connected. Current state: ${status.state}`);
       }
 
-      // Perform a simple query to test connection
-      const { error } = await this.supabase
-        .from('users')
-        .select('count')
-        .limit(1);
-
-      if (error && error.code !== 'PGRST116') { // Table doesn't exist is OK
-        throw error;
-      }
+      // Perform a simple ping to test connection
+      await mongoose.connection.db.admin().ping();
 
       return {
         status: 'healthy',
@@ -160,30 +177,62 @@ class Database {
   }
 
   /**
-   * Get database statistics (Supabase doesn't provide detailed stats like MongoDB)
+   * Get database statistics
    */
   async getStats() {
     try {
-      // For Supabase, we can get basic table information
-      const { data: tables, error } = await this.adminSupabase
-        .rpc('get_table_stats'); // This would need to be a custom function in Supabase
+      if (!this.isConnected) {
+        throw new Error('MongoDB not connected');
+      }
 
-      if (error) {
-        console.warn('Could not get Supabase stats:', error.message);
-        return {
-          message: 'Supabase stats not available',
-          timestamp: new Date().toISOString()
-        };
+      const db = mongoose.connection.db;
+      const admin = db.admin();
+
+      // Get database stats
+      const dbStats = await db.stats();
+
+      // Get collection stats
+      const collections = await db.listCollections().toArray();
+      const collectionStats = [];
+
+      for (const collection of collections) {
+        try {
+          const stats = await db.collection(collection.name).stats();
+          collectionStats.push({
+            name: collection.name,
+            count: stats.count,
+            size: stats.size,
+            avgObjSize: stats.avgObjSize,
+            storageSize: stats.storageSize,
+            indexes: stats.nindexes
+          });
+        } catch (error) {
+          // Some collections might not support stats
+          collectionStats.push({
+            name: collection.name,
+            error: error.message
+          });
+        }
       }
 
       return {
-        tables: tables || [],
+        database: {
+          name: dbStats.db,
+          collections: dbStats.collections,
+          objects: dbStats.objects,
+          avgObjSize: dbStats.avgObjSize,
+          dataSize: dbStats.dataSize,
+          storageSize: dbStats.storageSize,
+          indexes: dbStats.indexes,
+          indexSize: dbStats.indexSize
+        },
+        collections: collectionStats,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Error getting Supabase stats:', error);
+      console.error('Error getting MongoDB stats:', error);
       return {
-        message: 'Supabase stats not available',
+        message: 'MongoDB stats not available',
         error: error.message,
         timestamp: new Date().toISOString()
       };

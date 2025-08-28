@@ -6,8 +6,10 @@
 import { secureOnlyStorage } from '@/utils/storage';
 
 // Configuration
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:5000/api'  // Development
+const API_BASE_URL = __DEV__
+  ? 'http://localhost:5000/api'  // Development - Expo Web, iOS Simulator
+  // ? 'http://10.0.2.2:5000/api'  // Development - Android Emulator
+  // ? 'http://YOUR_COMPUTER_IP:5000/api'  // Development - Physical Device
   : 'https://your-production-api.com/api'; // Production
 
 const TOKEN_KEY = 'celf_auth_token';
@@ -43,12 +45,59 @@ export interface WalletBalance {
   lastActivity: string;
 }
 
+export interface Transaction {
+  id: string;
+  fromUserId?: string;
+  toUserId?: string;
+  toAddress?: string;
+  amount: number;
+  type: 'send' | 'receive' | 'mining' | 'referral' | 'exchange' | 'bonus';
+  status: 'pending' | 'completed' | 'failed';
+  description: string;
+  hash?: string;
+  fee?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserSearchResult {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  walletAddress: string | null;
+}
+
+export interface UserInfo {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  walletAddress: string;
+}
+
 export interface MiningStatus {
   isActive: boolean;
   currentRate: number;
   tokensEarned: number;
   runtime: number;
   status: string;
+}
+
+export interface UserSearchResult {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  walletAddress?: string;
+}
+
+export interface AddressValidationResult {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  walletAddress: string;
 }
 
 class ApiService {
@@ -247,9 +296,83 @@ class ApiService {
     });
   }
 
+  // User search endpoints
+  async searchUsers(query: string, limit: number = 10): Promise<ApiResponse<UserSearchResult[]>> {
+    // Use the authenticated endpoint with correct parameter name
+    const endpoint = `/users/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+    console.log('🔍 ApiService: Making search request to:', `${this.baseURL}${endpoint}`);
+
+    try {
+      const response = await this.request(endpoint);
+      console.log('📡 ApiService: Search response received:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ ApiService: Search request failed:', error);
+      throw error;
+    }
+  }
+
+  async validateAddress(address: string): Promise<ApiResponse<AddressValidationResult>> {
+    return this.request('/users/validate-address', {
+      method: 'POST',
+      body: JSON.stringify({ address }),
+    });
+  }
+
   // Wallet endpoints
   async getWalletBalance(): Promise<ApiResponse<WalletBalance>> {
     return this.request('/wallet/balance');
+  }
+
+  async exchangeTokens(
+    amount: number,
+    fromType: 'sendable' | 'nonSendable',
+    toType: 'sendable' | 'nonSendable'
+  ): Promise<ApiResponse<{
+    newBalance: {
+      sendable: number;
+      nonSendable: number;
+      total: number;
+    }
+  }>> {
+    return this.request('/wallet/exchange', {
+      method: 'POST',
+      body: JSON.stringify({ amount, fromType, toType }),
+    });
+  }
+
+  async getExchangeRates(): Promise<ApiResponse<{
+    rates: {
+      CELF_USD: number;
+      sendableToNonSendable: number;
+      nonSendableToSendable: number;
+    }
+  }>> {
+    return this.request('/wallet/exchange/rates');
+  }
+
+  async sendTokens(
+    toAddress: string,
+    amount: number,
+    description?: string
+  ): Promise<ApiResponse<Transaction & { recipient?: { name: string; address: string } }>> {
+    return this.request('/wallet/send', {
+      method: 'POST',
+      body: JSON.stringify({ toAddress, amount, description }),
+    });
+  }
+
+  // User search and lookup methods
+  async searchUsers(query: string, limit: number = 10): Promise<ApiResponse<UserSearchResult[]>> {
+    return this.request(`/users/search?query=${encodeURIComponent(query)}&limit=${limit}`);
+  }
+
+  async validateAddress(address: string): Promise<ApiResponse<UserInfo>> {
+    return this.request(`/users/validate-address/${address}`);
+  }
+
+  async getUserByAddress(address: string): Promise<ApiResponse<UserInfo>> {
+    return this.request(`/users/by-address/${address}`);
   }
 
   // Mining endpoints

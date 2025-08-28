@@ -13,15 +13,19 @@ import { apiService } from './apiService';
 export interface MiningState {
   isMining: boolean;
   totalEarned: number;
-  miningRate: number; // CELF per hour
+  miningRatePerSecond: number; // CELF per second (new system)
+  miningIntervalMs: number; // Mining interval in milliseconds (new system)
   startTime: number | null;
   runtime: string;
   countdown: string; // Time remaining until session ends
-  tokensPerSecond: number;
   sessionId: string | null;
   maxDurationMs: number;
   remainingTimeMs: number;
   serverTime: number | null;
+
+  // Backward compatibility fields (calculated from new fields)
+  miningRate?: number; // CELF per hour (for backward compatibility)
+  tokensPerSecond?: number; // CELF per second (for backward compatibility)
 }
 
 export interface MiningCallbacks {
@@ -36,29 +40,44 @@ export class MiningService {
   private callbacks: MiningCallbacks;
   private updateTimer: NodeJS.Timeout | null = null;
   private sessionEndTimer: NodeJS.Timeout | null = null;
-  private syncTimer: NodeJS.Timeout | null = null;
+  private lastUpdateTime: number = 0;
 
-  constructor(miningRate: number = 0.125) {
+  constructor() {
     this.state = {
       isMining: false,
       totalEarned: 0,
-      miningRate: miningRate,
+      miningRatePerSecond: 0.000278, // Default: 1 CELF/hour
+      miningIntervalMs: 1000, // Default: 1 second
       startTime: null,
       runtime: '0h 0m 0s',
       countdown: '24h 0m 0s',
-      tokensPerSecond: miningRate / 3600,
       sessionId: null,
       maxDurationMs: 24 * 60 * 60 * 1000, // 24 hours
       remainingTimeMs: 24 * 60 * 60 * 1000,
       serverTime: null,
     };
 
-    // Fetch current admin mining rate on initialization
-    this.fetchCurrentMiningRate();
+    // Initialize callbacks with empty functions
+    this.callbacks = {
+      onEarningsUpdate: () => {},
+      onRuntimeUpdate: () => {},
+      onCountdownUpdate: () => {},
+      onMiningStateChange: () => {},
+    };
+
+    console.log('🔧 Mining service initialized with default state:', {
+      miningRatePerSecond: this.state.miningRatePerSecond,
+      miningIntervalMs: this.state.miningIntervalMs,
+      maxDurationMs: this.state.maxDurationMs
+    });
+
+    // Don't fetch mining rate on initialization - wait for user authentication
+    // this.fetchCurrentMiningRate();
   }
 
   /**
    * Fetch current mining rate from admin settings
+   * Only call this after user is authenticated
    */
   async fetchCurrentMiningRate(): Promise<void> {
     try {
@@ -66,10 +85,29 @@ export class MiningService {
       const response = await apiService.getMiningRate();
 
       if (response.success && response.data?.rate) {
-        const { currentRate, maxSessionTime, maintenanceMode } = response.data.rate;
+        const rateData = response.data.rate;
 
-        // Update mining rate and session duration
-        this.updateMiningRate(currentRate);
+        // Handle both old and new response formats for backward compatibility
+        let miningRatePerSecond, miningIntervalMs, maxSessionTime, maintenanceMode;
+
+        if (rateData.miningRatePerSecond !== undefined) {
+          // New format
+          miningRatePerSecond = rateData.miningRatePerSecond;
+          miningIntervalMs = rateData.miningIntervalMs || 1000;
+          maxSessionTime = rateData.maxSessionTime;
+          maintenanceMode = rateData.maintenanceMode;
+        } else {
+          // Old format fallback (convert hourly rate to per-second)
+          const hourlyRate = rateData.currentRate || 1.0;
+          miningRatePerSecond = hourlyRate / 3600;
+          miningIntervalMs = 1000;
+          maxSessionTime = rateData.maxSessionTime;
+          maintenanceMode = rateData.maintenanceMode;
+        }
+
+        // Update mining configuration
+        this.state.miningRatePerSecond = miningRatePerSecond;
+        this.state.miningIntervalMs = miningIntervalMs;
         this.state.maxDurationMs = maxSessionTime * 1000; // Convert seconds to ms
         this.state.remainingTimeMs = maxSessionTime * 1000;
 
@@ -77,7 +115,9 @@ export class MiningService {
         this.state.countdown = this.formatRuntime(maxSessionTime * 1000);
 
         console.log('Mining rate updated from admin settings:', {
-          rate: currentRate,
+          miningRatePerSecond: miningRatePerSecond,
+          miningIntervalMs: miningIntervalMs,
+          calculatedHourlyRate: miningRatePerSecond * 3600,
           maxSessionTime: maxSessionTime,
           maintenanceMode: maintenanceMode
         });
@@ -93,15 +133,16 @@ export class MiningService {
       }
     } catch (error) {
       console.error('Failed to fetch mining rate from admin settings:', error);
-      // Continue with default rate if fetch fails
-    }
 
-    this.callbacks = {
-      onEarningsUpdate: () => {},
-      onRuntimeUpdate: () => {},
-      onCountdownUpdate: () => {},
-      onMiningStateChange: () => {},
-    };
+      // Handle authentication errors gracefully
+      if (error instanceof Error && error.message.includes('Authentication')) {
+        console.log('User not authenticated, using default mining rate');
+        return;
+      }
+
+      // Continue with default rate if admin settings are unavailable
+      console.log('Using default mining rate due to connection issues');
+    }
   }
 
   /**
@@ -136,33 +177,57 @@ export class MiningService {
         throw new Error(response.message || 'Failed to start mining session');
       }
 
+      console.log('🔍 Backend response:', JSON.stringify(response, null, 2));
+
       const sessionData = response.data.session;
 
-      // Initialize local state with backend data
+      if (!sessionData) {
+        throw new Error('No session data received from backend');
+      }
+
+      console.log('📊 Session data received:', {
+        sessionId: sessionData.sessionId,
+        miningRatePerSecond: sessionData.miningRatePerSecond,
+        miningIntervalMs: sessionData.miningIntervalMs,
+        maxDurationMs: sessionData.maxDurationMs,
+        startedAt: sessionData.startedAt
+      });
+
+      // Initialize local state with backend data and fallbacks
       this.state.isMining = true;
       this.state.totalEarned = 0;
-      this.state.startTime = new Date(sessionData.startedAt).getTime();
+      this.state.startTime = sessionData.startedAt ? new Date(sessionData.startedAt).getTime() : Date.now();
       this.state.sessionId = sessionData.sessionId;
-      this.state.miningRate = sessionData.miningRate;
-      this.state.maxDurationMs = sessionData.maxDurationMs;
-      this.state.remainingTimeMs = sessionData.maxDurationMs;
-      this.state.serverTime = new Date(sessionData.serverTime).getTime();
+      this.state.miningRatePerSecond = sessionData.miningRatePerSecond || 0.000278; // Fallback
+      this.state.miningIntervalMs = sessionData.miningIntervalMs || 1000; // Fallback
+      this.state.maxDurationMs = sessionData.maxDurationMs || 86400000; // Fallback
+      this.state.remainingTimeMs = this.state.maxDurationMs;
+      this.state.serverTime = sessionData.serverTime ? new Date(sessionData.serverTime).getTime() : Date.now();
 
-      console.log('Mining session started:', sessionData.sessionId);
-      console.log('Mining rate:', this.state.miningRate, 'CELF/hour');
+      console.log('✅ Mining session initialized:', {
+        sessionId: this.state.sessionId,
+        miningRatePerSecond: this.state.miningRatePerSecond,
+        miningIntervalMs: this.state.miningIntervalMs,
+        maxDurationMs: this.state.maxDurationMs,
+        calculatedHourlyRate: (this.state.miningRatePerSecond * 3600).toFixed(4)
+      });
 
       // Initialize wallet for mining session
       walletStore.startMiningSession();
 
-      // Start local UI update timer (every 100ms for smooth UI)
+      // Start local UI update timer (every 1 second for estimated progress)
       this.updateTimer = setInterval(() => {
         this.updateLocalProgress();
-      }, 100);
+      }, 1000);
 
-      // Start backend sync timer (every 30 seconds for authoritative data)
-      this.syncTimer = setInterval(() => {
-        this.syncWithBackend();
-      }, 30000);
+      // Initial estimated earnings calculation
+      const initialEarnings = this.calculateEstimatedEarnings();
+      console.log('🔍 Initial estimated earnings:', initialEarnings);
+      walletStore.updateMiningEarnings(initialEarnings);
+
+      // No real-time backend sync - only sync at session completion
+      console.log('📊 Mining session started - showing estimated progress only');
+      console.log('💡 Final earnings will be calculated server-side at completion');
 
       // Set timer for session end (24 hours)
       this.sessionEndTimer = setTimeout(() => {
@@ -178,29 +243,85 @@ export class MiningService {
   }
 
   /**
-   * Update local progress for smooth UI (estimated values)
-   * Real calculations happen on backend
+   * Calculate estimated earnings for UI display (not real tokens)
+   */
+  private calculateEstimatedEarnings(): number {
+    if (!this.state.isMining || !this.state.startTime) return 0;
+
+    const now = Date.now();
+    const elapsedMs = now - this.state.startTime;
+    const cappedElapsedMs = Math.min(elapsedMs, this.state.maxDurationMs || 86400000);
+
+    // Ensure we have valid mining parameters with fallbacks
+    const miningRatePerSecond = this.state.miningRatePerSecond || 0.000278; // 1 CELF/hour default
+    const miningIntervalMs = this.state.miningIntervalMs || 1000; // 1 second default
+
+    // Calculate estimated earnings based on elapsed time and admin-configured rate
+    const completedIntervals = Math.floor(cappedElapsedMs / miningIntervalMs);
+    const intervalRate = miningRatePerSecond * (miningIntervalMs / 1000);
+
+    const estimatedEarnings = completedIntervals * intervalRate;
+
+    // Ensure we return a valid number
+    return isNaN(estimatedEarnings) ? 0 : estimatedEarnings;
+  }
+
+  /**
+   * Update local progress for smooth UI (estimated earnings and time updates)
    */
   private updateLocalProgress(): void {
     if (!this.state.isMining || !this.state.startTime) return;
 
-    const now = Date.now();
-    const elapsedMs = now - this.state.startTime;
+    try {
+      const now = Date.now();
 
-    // Calculate estimated earnings for UI (backend will provide authoritative values)
-    const elapsedHours = elapsedMs / (1000 * 60 * 60);
-    const estimatedEarnings = elapsedHours * this.state.miningRate;
+      // Update earnings every time since we're now running at 1-second intervals
 
-    // Update earnings (use server value if available, otherwise estimate)
-    this.state.totalEarned = estimatedEarnings;
-    this.state.remainingTimeMs = Math.max(0, this.state.maxDurationMs - elapsedMs);
+      const elapsedMs = now - this.state.startTime;
+      const maxDuration = this.state.maxDurationMs || 86400000; // 24 hours default
 
-    // Update wallet store with estimated mining earnings for real-time balance display
-    const walletStore = useWalletStore.getState();
-    walletStore.updateMiningEarnings(this.state.totalEarned);
+      // Check if session should be completed
+      if (elapsedMs >= maxDuration) {
+        this.completeSession();
+        return;
+      }
 
-    // Update display with 4 decimal places
-    this.callbacks.onEarningsUpdate(parseFloat(this.state.totalEarned.toFixed(4)));
+      // Update estimated earnings for UI display
+      const estimatedEarnings = this.calculateEstimatedEarnings();
+
+      // Validate the estimated earnings
+      if (isNaN(estimatedEarnings) || estimatedEarnings < 0) {
+        console.warn('Invalid estimated earnings calculated:', estimatedEarnings);
+        console.warn('Mining state:', {
+          miningRatePerSecond: this.state.miningRatePerSecond,
+          miningIntervalMs: this.state.miningIntervalMs,
+          elapsedMs,
+          maxDuration
+        });
+        return;
+      }
+
+      // Only update if the value has actually changed (prevent unnecessary updates)
+      const roundedEarnings = parseFloat(estimatedEarnings.toFixed(6));
+      const currentRoundedEarnings = parseFloat((this.state.totalEarned || 0).toFixed(6));
+
+      if (roundedEarnings !== currentRoundedEarnings) {
+        this.state.totalEarned = estimatedEarnings;
+        this.lastUpdateTime = now;
+
+        // Update wallet store with estimated earnings (for display only)
+        const walletStore = useWalletStore.getState();
+        walletStore.updateMiningEarnings(estimatedEarnings);
+
+        // Update display with estimated earnings
+        this.callbacks.onEarningsUpdate(roundedEarnings);
+      }
+
+      // Update remaining time
+      this.state.remainingTimeMs = Math.max(0, maxDuration - elapsedMs);
+    } catch (error) {
+      console.error('Error updating local progress:', error);
+    }
 
     // Update runtime and countdown
     this.updateRuntime();
@@ -237,9 +358,14 @@ export class MiningService {
           this.state.startTime = Date.now() - serverRuntimeMs;
         }
 
-        if (serverData.currentRate !== undefined) {
-          this.state.miningRate = serverData.currentRate;
-          this.state.tokensPerSecond = serverData.currentRate / 3600;
+        // Handle both old and new rate formats
+        if (serverData.miningRatePerSecond !== undefined) {
+          this.state.miningRatePerSecond = serverData.miningRatePerSecond;
+          this.state.miningIntervalMs = serverData.miningIntervalMs || 1000;
+        } else if (serverData.currentRate !== undefined) {
+          // Fallback for old format
+          this.state.miningRatePerSecond = serverData.currentRate / 3600;
+          this.state.miningIntervalMs = 1000;
         }
 
         console.log('Backend sync completed:', {
@@ -409,11 +535,6 @@ export class MiningService {
       this.sessionEndTimer = null;
     }
 
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
-    }
-
     // Notify state change
     this.callbacks.onMiningStateChange(false);
     this.callbacks.onRuntimeUpdate(this.state.runtime);
@@ -450,14 +571,13 @@ export class MiningService {
           startTime = Date.now();
         }
 
-        // Restore session state with server-authoritative data
-        this.state.isMining = true;
+        // Restore session state with server-authoritative data (but don't set isMining yet)
         this.state.sessionId = sessionData.sessionId || null;
         this.state.startTime = startTime;
-        this.state.miningRate = sessionData.currentRate || 0.125;
+        this.state.miningRatePerSecond = sessionData.miningRatePerSecond || 0.000278;
+        this.state.miningIntervalMs = sessionData.miningIntervalMs || 1000;
         this.state.totalEarned = sessionData.tokensEarned || 0;
         this.state.serverTime = new Date(sessionData.serverTime || Date.now()).getTime();
-        this.state.tokensPerSecond = this.state.miningRate / 3600;
 
         // Set max duration from server or use default
         this.state.maxDurationMs = sessionData.maxDurationMs || (24 * 60 * 60 * 1000);
@@ -481,17 +601,19 @@ export class MiningService {
 
         // Initialize wallet for restored mining session
         walletStore.startMiningSession();
-        walletStore.updateMiningEarnings(this.state.totalEarned);
 
-        // Start local UI updates
+        // Calculate current estimated earnings
+        const estimatedEarnings = this.calculateEstimatedEarnings();
+        this.state.totalEarned = estimatedEarnings;
+        walletStore.updateMiningEarnings(estimatedEarnings);
+
+        // Start local UI updates (estimated progress only)
         this.updateTimer = setInterval(() => {
           this.updateLocalProgress();
-        }, 100);
+        }, 1000);
 
-        // Start backend sync timer for restored session
-        this.syncTimer = setInterval(() => {
-          this.syncWithBackend();
-        }, 30000);
+        console.log('📊 Mining session restored - showing estimated progress');
+        console.log(`💰 Current estimated earnings: ${estimatedEarnings.toFixed(6)} CELF`);
 
         // Set timer for remaining session time
         if (this.state.remainingTimeMs > 0) {
@@ -499,14 +621,18 @@ export class MiningService {
             console.log('Session timer expired, completing session');
             this.completeSession();
           }, this.state.remainingTimeMs);
+
+          // Only set mining to true if session is still valid
+          this.state.isMining = true;
+
+          // Notify state change
+          this.callbacks.onMiningStateChange(true);
         } else {
           // Session should have ended, complete it
           console.log('Session already expired, completing now');
           this.completeSession();
+          // Don't set isMining to true for expired sessions
         }
-
-        // Notify state change
-        this.callbacks.onMiningStateChange(true);
 
         // Update runtime and countdown display immediately
         this.updateRuntime();
@@ -536,10 +662,20 @@ export class MiningService {
   }
 
   /**
-   * Get current mining state
+   * Get current mining state (with backward compatibility)
    */
   getState(): MiningState {
-    return { ...this.state };
+    const state = { ...this.state };
+
+    // Add backward compatibility properties
+    if (!state.miningRate && state.miningRatePerSecond) {
+      state.miningRate = state.miningRatePerSecond * 3600; // Convert to hourly rate
+    }
+    if (!state.tokensPerSecond && state.miningRatePerSecond) {
+      state.tokensPerSecond = state.miningRatePerSecond; // Already per second
+    }
+
+    return state;
   }
 
   /**
@@ -614,14 +750,28 @@ export class MiningService {
   }
 
   /**
-   * Update mining rate
+   * Update mining rate (backward compatibility - converts hourly rate to per-second)
    */
   updateMiningRate(newRate: number): void {
-    this.state.miningRate = newRate;
-    this.state.tokensPerSecond = newRate / 3600;
-    
+    this.state.miningRatePerSecond = newRate / 3600;
+    this.state.miningIntervalMs = 1000;
+
     console.log('Mining rate updated to:', newRate, 'CELF/hour');
-    console.log('New tokens per second:', this.state.tokensPerSecond, 'CELF');
+    console.log('Converted to per-second:', this.state.miningRatePerSecond, 'CELF/second');
+  }
+
+  /**
+   * Get mining rate in CELF/hour (backward compatibility)
+   */
+  getMiningRate(): number {
+    return (this.state.miningRatePerSecond || 0.000278) * 3600;
+  }
+
+  /**
+   * Get tokens per second (backward compatibility)
+   */
+  getTokensPerSecond(): string {
+    return (this.state.miningRatePerSecond || 0.000278).toFixed(6);
   }
 
   /**
@@ -637,11 +787,6 @@ export class MiningService {
     if (this.sessionEndTimer) {
       clearTimeout(this.sessionEndTimer);
       this.sessionEndTimer = null;
-    }
-
-    if (this.syncTimer) {
-      clearInterval(this.syncTimer);
-      this.syncTimer = null;
     }
   }
 }

@@ -66,122 +66,59 @@ function MiningSettingsCard({ settings, onUpdate, loading }: MiningSettingsCardP
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label className="block text-sm font-medium text-secondary mb-2">
-            Default Mining Rate (CELF/hour)
+            Mining Rate (CELF/second)
           </label>
           <Input
             type="number"
-            step="0.1"
-            min="0.1"
-            max="100"
-            value={localSettings.defaultMiningRate}
-            onChange={(e) => handleInputChange('defaultMiningRate', parseFloat(e.target.value))}
+            step="0.000001"
+            min="0.000001"
+            max="1"
+            value={localSettings.miningRatePerSecond}
+            onChange={(e) => handleInputChange('miningRatePerSecond', parseFloat(e.target.value))}
             disabled={loading}
             className="bg-secondary border-accent text-primary focus:border-accent-hover"
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Max Session Time (seconds)
-          </label>
-          <Input
-            type="number"
-            min="60"
-            max="86400"
-            value={localSettings.maxSessionTime}
-            onChange={(e) => handleInputChange('maxSessionTime', parseInt(e.target.value))}
-            disabled={loading}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Mining Speed Multiplier
-          </label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0.1"
-            max="10"
-            value={localSettings.miningSpeed}
-            onChange={(e) => handleInputChange('miningSpeed', parseFloat(e.target.value))}
-            disabled={loading}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Reward Multiplier
-          </label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0.1"
-            max="5"
-            value={localSettings.rewardMultiplier}
-            onChange={(e) => handleInputChange('rewardMultiplier', parseFloat(e.target.value))}
-            disabled={loading}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Min Tokens to Mine
-          </label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={localSettings.minTokensToMine}
-            onChange={(e) => handleInputChange('minTokensToMine', parseFloat(e.target.value))}
-            disabled={loading}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Max Tokens per Session
-          </label>
-          <Input
-            type="number"
-            min="1"
-            value={localSettings.maxTokensPerSession}
-            onChange={(e) => handleInputChange('maxTokensPerSession', parseInt(e.target.value))}
-            disabled={loading}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Cooldown Period (seconds)
-          </label>
-          <Input
-            type="number"
-            min="0"
-            value={localSettings.cooldownPeriod}
-            onChange={(e) => handleInputChange('cooldownPeriod', parseInt(e.target.value))}
-            disabled={loading}
-          />
           <p className="text-xs text-gray-500 mt-1">
-            Time users must wait between mining sessions
+            Hourly Rate: {(localSettings.miningRatePerSecond * 3600).toFixed(4)} CELF/hour
           </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Daily Limit (CELF)
+            Mining Interval (milliseconds)
           </label>
           <Input
             type="number"
-            min="1"
-            value={localSettings.dailyLimit}
-            onChange={(e) => handleInputChange('dailyLimit', parseInt(e.target.value))}
+            min="100"
+            max="10000"
+            value={localSettings.miningIntervalMs}
+            onChange={(e) => handleInputChange('miningIntervalMs', parseInt(e.target.value))}
             disabled={loading}
           />
           <p className="text-xs text-gray-500 mt-1">
-            Maximum tokens per user per day
+            How often tokens are mined (1000ms = 1 second)
           </p>
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Max Session Time (hours)
+          </label>
+          <Input
+            type="number"
+            step="0.5"
+            min="0.5"
+            max="24"
+            value={localSettings.maxSessionTime / 3600}
+            onChange={(e) => handleInputChange('maxSessionTime', parseFloat(e.target.value) * 3600)}
+            disabled={loading}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Sessions will auto-complete after {(localSettings.maxSessionTime / 3600).toFixed(1)} hours
+          </p>
+        </div>
+
+
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -323,70 +260,82 @@ function MiningSessionsTable({ sessions, onSessionAction, loading }: MiningSessi
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {sessions.map((session) => (
-              <tr key={session.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {session.users ? `${session.users.firstName} ${session.users.lastName}` : 'Unknown User'}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {session.users?.email || `User ID: ${session.user_id}`}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(session.status)}`}>
-                    {session.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {(session.mining_rate || session.miningRate || 0).toFixed(2)} CELF/h
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {(session.tokens_earned || session.tokensEarned || 0).toFixed(4)} CELF
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatDuration(session.runtime_seconds || session.runtimeSeconds || 0)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(session.started_at || session.startedAt).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center space-x-2">
-                    {session.status === 'active' && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onSessionAction(session.id, 'pause')}
-                        >
-                          <Pause className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onSessionAction(session.id, 'terminate')}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Square className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                    {session.status === 'paused' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onSessionAction(session.id, 'resume')}
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
-                    )}
+            {(sessions || []).length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <div className="flex flex-col items-center space-y-2">
+                    <Pickaxe className="h-8 w-8 text-gray-400" />
+                    <p>No mining sessions found</p>
+                    <p className="text-sm">Mining sessions will appear here once users start mining</p>
                   </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              (sessions || []).map((session) => (
+                <tr key={session.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {session.users ? `${session.users.firstName} ${session.users.lastName}` : 'Unknown User'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {session.users?.email || `User ID: ${session.user_id}`}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(session.status)}`}>
+                      {session.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {(session.mining_rate || session.miningRate || 0).toFixed(2)} CELF/h
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {(session.tokens_earned || session.tokensEarned || 0).toFixed(4)} CELF
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatDuration(session.runtime_seconds || session.runtimeSeconds || 0)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(session.started_at || session.startedAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      {session.status === 'active' && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onSessionAction(session.id, 'pause')}
+                          >
+                            <Pause className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onSessionAction(session.id, 'terminate')}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Square className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      {session.status === 'paused' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onSessionAction(session.id, 'resume')}
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -412,7 +361,7 @@ export default function AdminMining() {
 
       if (settingsResponse.success && settingsResponse.data) {
         // Validate that we have all required settings from database
-        const requiredSettings = ['defaultMiningRate', 'maxSessionTime', 'miningSpeed', 'rewardMultiplier', 'maintenanceMode', 'minTokensToMine', 'maxTokensPerSession'];
+        const requiredSettings = ['miningRatePerSecond', 'miningIntervalMs', 'maxSessionTime', 'maintenanceMode'];
         const missingSettings = requiredSettings.filter(key => settingsResponse.data[key] === undefined || settingsResponse.data[key] === null);
 
         if (missingSettings.length > 0) {

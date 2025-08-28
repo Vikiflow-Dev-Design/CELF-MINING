@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
-const supabaseService = require('../services/supabaseService');
+const mongodbService = require('../services/mongodbService');
 const { createResponse } = require('../utils/responseUtils');
 
 // Authentication middleware
@@ -18,13 +18,13 @@ const authenticate = async (req, res, next) => {
       const decoded = jwt.verify(token, config.jwt.secret);
 
       // Check if user still exists
-      const user = await supabaseService.findUserById(decoded.userId);
+      const user = await mongodbService.findUserById(decoded.userId);
       if (!user) {
         return res.status(401).json(createResponse(false, 'User no longer exists'));
       }
 
       // Check if user is active
-      if (!user.is_active) {
+      if (!user.isActive) {
         return res.status(401).json(createResponse(false, 'User account is deactivated'));
       }
 
@@ -74,9 +74,9 @@ const optionalAuth = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
-      const user = await supabaseService.findUserById(decoded.userId);
+      const user = await mongodbService.findUserById(decoded.userId);
 
-      if (user && user.is_active) {
+      if (user && user.isActive) {
         req.user = {
           userId: user.id,
           email: user.email,

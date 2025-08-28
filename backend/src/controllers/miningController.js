@@ -17,10 +17,10 @@ class MiningController {
         console.log('No active mining session found');
 
         // Get current admin settings for default rate
-        const supabaseService = require('../services/supabaseService');
+        const mongodbService = require('../services/mongodbService');
         let defaultRate = 0.125;
         try {
-          const adminSettings = await supabaseService.getMiningSettings();
+          const adminSettings = await mongodbService.getMiningSettings();
           defaultRate = (adminSettings.defaultMiningRate || 0.125) *
                        (adminSettings.miningSpeed || 1.0) *
                        (adminSettings.rewardMultiplier || 1.0);
@@ -46,12 +46,14 @@ class MiningController {
 
       const status = {
         isActive: true,
-        currentRate: currentSession.miningRate,
+        sessionId: currentSession.sessionId,
+        miningRatePerSecond: currentSession.miningRatePerSecond,
+        miningIntervalMs: currentSession.miningIntervalMs || 1000,
         tokensEarned: currentSession.currentEarnings,
         runtime: runtimeSeconds,
         status: 'active',
-        sessionId: currentSession.sessionId,
         remainingTimeMs: currentSession.remainingTimeMs,
+        maxDurationMs: currentSession.maxDurationMs || 86400000,
         progress: currentSession.progress,
         serverTime: currentSession.serverTime
       };
@@ -71,18 +73,18 @@ class MiningController {
         {
           id: '1',
           status: 'completed',
-          tokens_earned: 25.5,
-          runtime_seconds: 3600,
-          started_at: new Date(Date.now() - 86400000).toISOString(),
-          completed_at: new Date(Date.now() - 82800000).toISOString()
+          tokensEarned: 25.5,
+          runtimeSeconds: 3600,
+          startedAt: new Date(Date.now() - 86400000).toISOString(),
+          completedAt: new Date(Date.now() - 82800000).toISOString()
         },
         {
           id: '2',
           status: 'completed',
-          tokens_earned: 18.2,
-          runtime_seconds: 2700,
-          started_at: new Date(Date.now() - 172800000).toISOString(),
-          completed_at: new Date(Date.now() - 170100000).toISOString()
+          tokensEarned: 18.2,
+          runtimeSeconds: 2700,
+          startedAt: new Date(Date.now() - 172800000).toISOString(),
+          completedAt: new Date(Date.now() - 170100000).toISOString()
         }
       ];
 
@@ -119,12 +121,14 @@ class MiningController {
         session: {
           sessionId: sessionData.sessionId,
           status: 'active',
-          miningRate: sessionData.miningRate,
+          miningRatePerSecond: sessionData.miningRatePerSecond,
+          miningIntervalMs: sessionData.miningIntervalMs || 1000,
           tokensEarned: 0,
           runtimeSeconds: 0,
           startedAt: sessionData.startTime,
           maxDurationMs: sessionData.maxDurationMs,
-          serverTime: sessionData.serverTime
+          serverTime: sessionData.serverTime,
+          estimatedMaxEarnings: sessionData.estimatedMaxEarnings || 0
         }
       }));
     } catch (error) {
@@ -288,11 +292,11 @@ class MiningController {
       const mockSession = {
         id,
         status: 'completed',
-        tokens_earned: 25.5,
-        runtime_seconds: 3600,
-        mining_rate: 1.5,
-        started_at: new Date(Date.now() - 86400000).toISOString(),
-        completed_at: new Date(Date.now() - 82800000).toISOString()
+        tokensEarned: 25.5,
+        runtimeSeconds: 3600,
+        miningRate: 1.5,
+        startedAt: new Date(Date.now() - 86400000).toISOString(),
+        completedAt: new Date(Date.now() - 82800000).toISOString()
       };
 
       res.json(createResponse(true, 'Mining session retrieved successfully (mock)', { session: mockSession }));
@@ -373,26 +377,17 @@ class MiningController {
   async getMiningRate(req, res, next) {
     try {
       // Get admin mining settings
-      const supabaseService = require('../services/supabaseService');
-      const adminSettings = await supabaseService.getMiningSettings();
+      const mongodbService = require('../services/mongodbService');
+      const adminSettings = await mongodbService.getMiningSettings();
 
-      // Calculate effective mining rate
-      const baseRate = adminSettings.defaultMiningRate || 0.125;
-      const speedMultiplier = adminSettings.miningSpeed || 1.0;
-      const rewardMultiplier = adminSettings.rewardMultiplier || 1.0;
-      const effectiveRate = baseRate * speedMultiplier * rewardMultiplier;
+      // Get mining configuration from admin settings
 
       const rateInfo = {
-        currentRate: effectiveRate,
-        baseRate: baseRate,
-        speedMultiplier: speedMultiplier,
-        rewardMultiplier: rewardMultiplier,
+        miningRatePerSecond: adminSettings.miningRatePerSecond || 0.000278,
+        miningIntervalMs: adminSettings.miningIntervalMs || 1000,
+        calculatedHourlyRate: (adminSettings.miningRatePerSecond || 0.000278) * 3600, // Auto-calculated for display
         maxSessionTime: adminSettings.maxSessionTime || 86400, // seconds
         maintenanceMode: adminSettings.maintenanceMode || false,
-        minTokensToMine: adminSettings.minTokensToMine || 0.01,
-        maxTokensPerSession: adminSettings.maxTokensPerSession || 100,
-        cooldownPeriod: adminSettings.cooldownPeriod || 0,
-        dailyLimit: adminSettings.dailyLimit || 1000,
         referralBonus: adminSettings.referralBonus || 0.1,
         autoClaim: adminSettings.autoClaim !== undefined ? adminSettings.autoClaim : true,
         notificationEnabled: adminSettings.notificationEnabled !== undefined ? adminSettings.notificationEnabled : true
@@ -438,8 +433,8 @@ class MiningController {
   async getMiningMilestones(req, res, next) {
     try {
       const mockMilestones = [
-        { id: 1, target: 50, current: 65, type: 'tokens_earned', reward: '5 bonus tokens', completed: true },
-        { id: 2, target: 100, current: 65, type: 'tokens_earned', reward: '10 bonus tokens', completed: false },
+        { id: 1, target: 50, current: 65, type: 'tokensEarned', reward: '5 bonus tokens', completed: true },
+        { id: 2, target: 100, current: 65, type: 'tokensEarned', reward: '10 bonus tokens', completed: false },
         { id: 3, target: 10, current: 15, type: 'sessions_completed', reward: 'Rate boost', completed: true }
       ];
 
@@ -491,10 +486,10 @@ class MiningController {
           userName: 'John Doe',
           userEmail: 'john@example.com',
           status: 'completed',
-          tokens_earned: 25.5,
-          runtime_seconds: 3600,
-          started_at: new Date(Date.now() - 86400000).toISOString(),
-          completed_at: new Date(Date.now() - 82800000).toISOString()
+          tokensEarned: 25.5,
+          runtimeSeconds: 3600,
+          startedAt: new Date(Date.now() - 86400000).toISOString(),
+          completedAt: new Date(Date.now() - 82800000).toISOString()
         },
         {
           id: '2',
@@ -502,9 +497,9 @@ class MiningController {
           userName: 'Jane Smith',
           userEmail: 'jane@example.com',
           status: 'active',
-          tokens_earned: 12.3,
-          runtime_seconds: 1800,
-          started_at: new Date(Date.now() - 1800000).toISOString()
+          tokensEarned: 12.3,
+          runtimeSeconds: 1800,
+          startedAt: new Date(Date.now() - 1800000).toISOString()
         }
       ];
 
@@ -554,10 +549,10 @@ class MiningController {
         {
           id: '1',
           status: 'completed',
-          tokens_earned: 25.5,
-          runtime_seconds: 3600,
-          started_at: new Date(Date.now() - 86400000).toISOString(),
-          completed_at: new Date(Date.now() - 82800000).toISOString()
+          tokensEarned: 25.5,
+          runtimeSeconds: 3600,
+          startedAt: new Date(Date.now() - 86400000).toISOString(),
+          completedAt: new Date(Date.now() - 82800000).toISOString()
         }
       ];
 
