@@ -2,8 +2,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 const mongodbService = require('../services/mongodbService');
+const achievementService = require('../services/achievementService');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../utils/tokenUtils');
 const { createResponse } = require('../utils/responseUtils');
+const { createWalletData } = require('../utils/walletUtils');
 const {
   validateRegistrationForm,
   validateLoginForm,
@@ -19,13 +21,14 @@ class AuthController {
       console.log('📥 Registration request received');
       console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
 
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, referralCode } = req.body;
 
       console.log('📝 Extracted fields:');
       console.log('  - email:', email);
       console.log('  - password:', password ? '[PROVIDED]' : '[MISSING]');
       console.log('  - firstName:', firstName);
       console.log('  - lastName:', lastName);
+      console.log('  - referralCode:', referralCode || '[NONE]');
 
       // Sanitize input data
       const sanitizedData = sanitizeRegistrationData({ email, password, firstName, lastName });
@@ -80,19 +83,16 @@ class AuthController {
 
       const user = await mongodbService.createUser(userData);
 
-      // Create wallet for the user with 10 CELF welcome bonus
-      const walletData = {
-        userId: user.id,
-        sendableBalance: 0,
-        nonSendableBalance: 10, // 10 CELF welcome bonus for testing
-        pendingBalance: 0,
-        currentAddress: `celf${Math.random().toString(36).substr(2, 40)}`,
-        addresses: [{
-          address: `celf${Math.random().toString(36).substr(2, 40)}`,
-          label: 'Main Wallet',
-          isActive: true
-        }]
-      };
+      // Generate referral code for new user
+      const ReferralService = require('../services/referralService');
+      await ReferralService.createReferralCodeForUser(user.id);
+
+      // Create wallet for the user with secure address generation
+      const walletData = createWalletData(user.id, user.email, 'Primary Wallet');
+
+      // Add welcome bonus
+      walletData.nonSendableBalance = 10; // 10 CELF welcome bonus for testing
+      walletData.totalBalance = 10;
 
       const wallet = await mongodbService.createWallet(walletData);
 
@@ -107,14 +107,50 @@ class AuthController {
       });
       await welcomeTransaction.save();
 
+      // Process referral if provided
+      let referralBonus = 0;
+      if (referralCode) {
+        try {
+          console.log(`🔗 Processing referral with code: ${referralCode}`);
+          const referral = await ReferralService.processReferralSignup(user.id, referralCode, {
+            source: 'mobile_app',
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+          });
+
+          if (referral) {
+            // Give referral rewards
+            await ReferralService.giveReferralRewards(referral._id);
+            referralBonus = referral.refereeReward.amount;
+            console.log(`✅ Referral processed successfully. User gets ${referralBonus} CELF bonus`);
+          }
+        } catch (referralError) {
+          console.error('❌ Referral processing failed:', referralError);
+          // Don't fail registration if referral fails
+        }
+      }
+
+      // Initialize achievements for the new user
+      try {
+        await achievementService.initializeUserAchievements(user.id);
+        console.log('✅ Achievements initialized for new user');
+      } catch (achievementError) {
+        console.error('Error initializing achievements for new user:', achievementError);
+        // Don't fail registration if achievement initialization fails
+      }
+
       res.status(201).json(createResponse(true, 'User registered successfully', {
         user: {
           id: user.id,
           email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
+          firstName: user.firstName,
+          lastName: user.lastName,
           role: user.role
-        }
+        },
+        referral: referralCode ? {
+          processed: referralBonus > 0,
+          bonus: referralBonus
+        } : null
       }));
     } catch (error) {
       next(error);

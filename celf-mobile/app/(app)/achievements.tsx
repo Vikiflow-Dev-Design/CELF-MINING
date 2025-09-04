@@ -32,9 +32,13 @@ export default function AchievementsScreen() {
     totalCount,
     totalRewards,
     completionPercentage,
+    unclaimedRewards,
+    loading,
+    error,
     handleCategorySelect,
     handleAchievementPress,
     refreshAchievements,
+    claimReward,
   } = useAchievements();
 
   const onRefresh = useCallback(async () => {
@@ -79,25 +83,87 @@ export default function AchievementsScreen() {
     </View>
   );
 
-  const ListEmptyComponent = () => (
-    <View style={{
-      alignItems: 'center',
-      paddingTop: Spacing['3xl'],
-      paddingHorizontal: Layout.screenMargin.mobile,
-    }}>
-      <Ionicons name="trophy-outline" size={64} color={themeColors.icon.tertiary} />
-      <Typography variant="h3" weight="semibold" style={{
-        marginTop: Spacing.lg,
-        marginBottom: Spacing.sm,
-        textAlign: 'center',
+  const ListEmptyComponent = () => {
+    if (loading) {
+      return (
+        <View style={{
+          alignItems: 'center',
+          paddingTop: Spacing['3xl'],
+          paddingHorizontal: Layout.screenMargin.mobile,
+        }}>
+          <Ionicons name="hourglass-outline" size={64} color={themeColors.icon.tertiary} />
+          <Typography variant="h3" weight="semibold" style={{
+            marginTop: Spacing.lg,
+            marginBottom: Spacing.sm,
+            textAlign: 'center',
+          }}>
+            Loading achievements...
+          </Typography>
+          <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center' }}>
+            Please wait while we fetch your achievements
+          </Typography>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={{
+          alignItems: 'center',
+          paddingTop: Spacing['3xl'],
+          paddingHorizontal: Layout.screenMargin.mobile,
+        }}>
+          <Ionicons name="alert-circle-outline" size={64} color={themeColors.icon.tertiary} />
+          <Typography variant="h3" weight="semibold" style={{
+            marginTop: Spacing.lg,
+            marginBottom: Spacing.sm,
+            textAlign: 'center',
+          }}>
+            Failed to load achievements
+          </Typography>
+          <Typography variant="bodyMedium" color="secondary" style={{
+            textAlign: 'center',
+            marginBottom: Spacing.lg,
+          }}>
+            {error}
+          </Typography>
+          <TouchableOpacity
+            onPress={refreshAchievements}
+            style={{
+              backgroundColor: themeColors.primary.blue,
+              paddingHorizontal: Spacing.lg,
+              paddingVertical: Spacing.sm,
+              borderRadius: 8,
+            }}
+          >
+            <Typography variant="bodyMedium" color="inverse" weight="semibold">
+              Try Again
+            </Typography>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={{
+        alignItems: 'center',
+        paddingTop: Spacing['3xl'],
+        paddingHorizontal: Layout.screenMargin.mobile,
       }}>
-        No achievements found
-      </Typography>
-      <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center' }}>
-        Try selecting a different category
-      </Typography>
-    </View>
-  );
+        <Ionicons name="trophy-outline" size={64} color={themeColors.icon.tertiary} />
+        <Typography variant="h3" weight="semibold" style={{
+          marginTop: Spacing.lg,
+          marginBottom: Spacing.sm,
+          textAlign: 'center',
+        }}>
+          No achievements found
+        </Typography>
+        <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center' }}>
+          Try selecting a different category
+        </Typography>
+      </View>
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.background.secondary }}>

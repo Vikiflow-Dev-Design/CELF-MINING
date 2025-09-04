@@ -134,6 +134,12 @@ export const RecipientPreview: React.FC<RecipientPreviewProps> = ({
         <Typography variant="bodySmall" color="secondary">
           {recipient.email}
         </Typography>
+
+        {recipient.walletAddress && (
+          <Typography variant="bodySmall" color="tertiary" style={{ fontFamily: 'monospace', marginTop: 2 }}>
+            {recipient.walletAddress.slice(0, 16)}...{recipient.walletAddress.slice(-8)}
+          </Typography>
+        )}
       </View>
 
       {/* Clear Button */}

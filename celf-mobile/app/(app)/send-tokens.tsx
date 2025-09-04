@@ -157,8 +157,8 @@ export default function SendTokensScreen() {
           {item.email}
         </Typography>
         {item.walletAddress && (
-          <Typography variant="bodySmall" color="tertiary" style={{ marginTop: 2 }}>
-            {item.walletAddress.slice(0, 12)}...
+          <Typography variant="bodySmall" color="tertiary" style={{ marginTop: 2, fontFamily: 'monospace' }}>
+            {item.walletAddress.slice(0, 16)}...{item.walletAddress.slice(-8)}
           </Typography>
         )}
       </View>
@@ -249,7 +249,7 @@ export default function SendTokensScreen() {
             >
               <Ionicons name="search" size={20} color={Colors.icon.secondary} style={{ marginRight: Spacing.sm }} />
               <Typography variant="bodyMedium" color="tertiary">
-                Search by name or email
+                Search by name, email, or wallet address
               </Typography>
             </TouchableOpacity>
           </View>
@@ -314,7 +314,7 @@ export default function SendTokensScreen() {
               <TextInput
                 value={searchQuery}
                 onChangeText={handleSearchQueryChange}
-                placeholder="Search by name or email"
+                placeholder="Search by name, email, or wallet address"
                 style={{
                   flex: 1,
                   fontSize: 16,
@@ -367,7 +367,7 @@ export default function SendTokensScreen() {
                     No users found
                   </Typography>
                   <Typography variant="bodySmall" color="secondary" style={{ textAlign: 'center' }}>
-                    Try searching with a different name or email
+                    Try searching with a different name, email, or wallet address
                   </Typography>
                 </View>
               ) : null}

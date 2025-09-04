@@ -355,18 +355,33 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         }));
       },
 
-      sendTokens: async (toAddress: string, amount: number, description?: string) => {
+      sendTokens: async (toEmailOrAddress: string, amount: number, description?: string) => {
         try {
-          console.log(`🚀 Wallet: Sending ${amount} CELF to ${toAddress}...`);
+          console.log(`🚀 Wallet: Sending ${amount} CELF to ${toEmailOrAddress}...`);
+          console.log(`📊 Wallet: Current state:`, {
+            sendableBalance: get().balanceBreakdown.sendable,
+            totalBalance: get().totalBalance,
+            amount
+          });
 
           const state = get();
 
           if (amount > state.balanceBreakdown.sendable) {
+            console.error(`❌ Wallet: Insufficient balance. Required: ${amount}, Available: ${state.balanceBreakdown.sendable}`);
             throw new Error('Insufficient sendable balance. Please exchange tokens first.');
           }
 
-          // Call backend API to send tokens
-          const response = await apiService.sendTokens(toAddress, amount, description);
+          // Determine if it's an email or address and call appropriate API
+          const isEmail = toEmailOrAddress.includes('@');
+          console.log(`📡 Wallet: Sending by ${isEmail ? 'email' : 'address'}...`);
+
+          let response;
+          if (isEmail) {
+            response = await apiService.sendTokensByEmail(toEmailOrAddress, amount, description);
+          } else {
+            response = await apiService.sendTokens(toEmailOrAddress, amount, description);
+          }
+          console.log(`📡 Wallet: API response:`, response);
 
           if (response.success && response.data) {
             const { transaction, recipient } = response.data;
@@ -376,10 +391,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
               id: transaction.id || Date.now().toString(),
               type: 'send',
               amount: -amount, // Negative for outgoing
-              toAddress,
+              toAddress: isEmail ? recipient?.email || toEmailOrAddress : toEmailOrAddress,
               timestamp: Date.now(),
               status: 'completed',
-              description: description || `Sent to ${recipient?.name || toAddress.slice(0, 8) + '...'}`,
+              description: description || `Sent to ${recipient?.name || (isEmail ? recipient?.email : toEmailOrAddress.slice(0, 8) + '...')}`,
               fee: 0, // No fees
             };
 

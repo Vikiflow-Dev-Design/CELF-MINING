@@ -1,6 +1,6 @@
 /**
- * Achievement Details Screen - Refactored
- * Displays detailed information about a specific achievement
+ * Task Details Screen - Refactored
+ * Displays detailed information about a specific task
  */
 
 import React from 'react';
@@ -14,23 +14,60 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { router, useLocalSearchParams } from 'expo-router';
 
 // Extracted hook
-import { useAchievementDetails } from '@/src/features/achievements/hooks/useAchievementDetails';
-import { getCategoryColor, getCategoryName, calculateProgress } from '@/src/features/achievements/utils';
+import { useTaskDetails } from '@/src/features/tasks/hooks/useTaskDetails';
+import { getCategoryColor, getCategoryName, calculateProgress } from '@/src/features/tasks/utils';
 
-export default function AchievementDetailsScreen() {
+export default function TaskDetailsScreen() {
   const { toggleSidebar } = useNavigation();
   const themeColors = useThemeColors();
   const { id } = useLocalSearchParams();
 
   const {
-    achievement,
-    handleShareAchievement,
+    task,
+    loading,
+    error,
+    handleShareTask,
     handleClaimReward,
-    handleViewAllAchievements,
+    handleViewAllTasks,
     handleGoBack,
-  } = useAchievementDetails(id as string);
+    fetchTaskDetails,
+  } = useTaskDetails(id as string);
 
-  if (!achievement) {
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: themeColors.background.secondary }}>
+        <Header
+          title="Task Details"
+          onMenuPress={toggleSidebar}
+          rightAction={
+            <TouchableOpacity onPress={handleGoBack}>
+              <Ionicons name="close" size={24} color={themeColors.icon.secondary} />
+            </TouchableOpacity>
+          }
+        />
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: Layout.screenMargin.mobile,
+        }}>
+          <Ionicons name="hourglass-outline" size={64} color={themeColors.icon.tertiary} />
+          <Typography variant="h3" weight="semibold" style={{
+            marginTop: Spacing.lg,
+            marginBottom: Spacing.sm,
+            textAlign: 'center',
+          }}>
+            Loading Task...
+          </Typography>
+          <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center' }}>
+            Please wait while we fetch the task details.
+          </Typography>
+        </View>
+      </View>
+    );
+  }
+
+  if (error || !task) {
     return (
       <View style={{ flex: 1, backgroundColor: themeColors.background.secondary }}>
         <Header
@@ -54,29 +91,39 @@ export default function AchievementDetailsScreen() {
             marginBottom: Spacing.sm,
             textAlign: 'center',
           }}>
-            Achievement Not Found
+            {error ? 'Failed to Load Achievement' : 'Achievement Not Found'}
           </Typography>
-          <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center' }}>
-            The achievement you're looking for doesn't exist.
+          <Typography variant="bodyMedium" color="secondary" style={{
+            textAlign: 'center',
+            marginBottom: Spacing.lg,
+          }}>
+            {error || "The task you're looking for doesn't exist."}
           </Typography>
+          {error ? (
+            <Button
+              title="Try Again"
+              onPress={fetchTaskDetails}
+              style={{ marginBottom: Spacing.md }}
+            />
+          ) : null}
           <Button
             title="Go Back"
             onPress={handleGoBack}
-            style={{ marginTop: Spacing.lg }}
+            variant="secondary"
           />
         </View>
       </View>
     );
   }
 
-  const categoryColor = getCategoryColor(achievement.category);
-  const categoryName = getCategoryName(achievement.category);
-  const progressPercentage = calculateProgress(achievement);
+  const categoryColor = getCategoryColor(task.category);
+  const categoryName = getCategoryName(task.category);
+  const progressPercentage = calculateProgress(task);
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.background.secondary }}>
       <Header
-        title="Achievement Details"
+        title="Task Details"
         onMenuPress={toggleSidebar}
         rightAction={
           <TouchableOpacity onPress={handleGoBack}>
@@ -92,7 +139,7 @@ export default function AchievementDetailsScreen() {
           paddingBottom: 32,
         }}>
 
-          {/* Achievement Header */}
+          {/* Task Header */}
           <Card
             variant="gradient"
             gradientColors={[categoryColor, categoryColor + 'CC']}
@@ -118,13 +165,13 @@ export default function AchievementDetailsScreen() {
               position: 'relative',
             }}>
               <Ionicons
-                name={achievement.icon as any}
+                name={task.icon as any}
                 size={40}
                 color={Colors.neutral.white}
               />
 
               {/* Completion Badge */}
-              {achievement.isCompleted && (
+              {task.isCompleted && (
                 <View style={{
                   position: 'absolute',
                   top: -8,
@@ -144,7 +191,7 @@ export default function AchievementDetailsScreen() {
             </View>
 
             <Typography variant="h2" color="inverse" weight="bold" style={{ textAlign: 'center', marginBottom: Spacing.sm }}>
-              {achievement.title}
+              {task.title}
             </Typography>
 
             <View style={{
@@ -163,7 +210,7 @@ export default function AchievementDetailsScreen() {
             </View>
 
             <Typography variant="bodyLarge" color="inverse" style={{ textAlign: 'center', opacity: 0.9 }}>
-              {achievement.description}
+              {task.description}
             </Typography>
           </Card>
 
@@ -176,7 +223,7 @@ export default function AchievementDetailsScreen() {
               </Typography>
             </View>
 
-            {achievement.isCompleted ? (
+            {task.isCompleted ? (
               <View style={{ alignItems: 'center', paddingVertical: Spacing.lg }}>
                 <View style={{
                   width: 60,
@@ -192,9 +239,9 @@ export default function AchievementDetailsScreen() {
                 <Typography variant="h3" weight="bold" style={{ color: Colors.secondary.success, marginBottom: Spacing.sm }}>
                   Completed!
                 </Typography>
-                {achievement.completedDate && (
+                {task.completedDate && (
                   <Typography variant="bodyMedium" color="secondary">
-                    Completed on {new Date(achievement.completedDate).toLocaleDateString()}
+                    Completed on {new Date(task.completedDate).toLocaleDateString()}
                   </Typography>
                 )}
               </View>
@@ -202,7 +249,7 @@ export default function AchievementDetailsScreen() {
               <View>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
                   <Typography variant="bodyLarge" weight="medium">
-                    {achievement.progress} / {achievement.maxProgress}
+                    {task.progress} / {task.maxProgress}
                   </Typography>
                   <Typography variant="bodyLarge" weight="bold" style={{ color: categoryColor }}>
                     {Math.round(progressPercentage)}%
@@ -226,7 +273,7 @@ export default function AchievementDetailsScreen() {
                 </View>
 
                 <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center' }}>
-                  {achievement.maxProgress - achievement.progress} more to go!
+                  {task.maxProgress - task.progress} more to go!
                 </Typography>
               </View>
             )}
@@ -253,30 +300,49 @@ export default function AchievementDetailsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="diamond" size={24} color={Colors.secondary.warning} style={{ marginRight: Spacing.sm }} />
                 <Typography variant="h2" weight="bold" style={{ color: Colors.secondary.warning }}>
-                  {achievement.reward} CELF
+                  {task.reward} CELF
                 </Typography>
               </View>
 
-              {achievement.isCompleted && (
+              {task.isCompleted && !task.rewardClaimed && (
                 <Button
-                  title="Claim"
+                  title="Claim Reward"
                   onPress={handleClaimReward}
                   variant="primary"
                   size="small"
                 />
               )}
+
+              {task.isCompleted && task.rewardClaimed && (
+                <View style={{
+                  backgroundColor: Colors.secondary.success + '20',
+                  paddingHorizontal: Spacing.md,
+                  paddingVertical: Spacing.sm,
+                  borderRadius: BorderRadius.md,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Ionicons name="checkmark-circle" size={16} color={Colors.secondary.success} style={{ marginRight: Spacing.xs }} />
+                  <Typography variant="bodySmall" weight="semibold" style={{ color: Colors.secondary.success }}>
+                    Reward Claimed
+                  </Typography>
+                </View>
+              )}
             </View>
 
             <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center' }}>
-              {achievement.isCompleted
-                ? 'Congratulations! You can claim your reward.'
-                : 'Complete this achievement to earn CELF tokens.'
+              {task.isCompleted
+                ? task.rewardClaimed
+                  ? 'Congratulations! You have claimed your reward.'
+                  : 'Congratulations! You can claim your reward.'
+                : 'Complete this task to earn CELF tokens.'
               }
             </Typography>
           </Card>
 
           {/* Tips Section */}
-          {achievement.tips && achievement.tips.length > 0 && (
+          {task.tips && task.tips.length > 0 && (
             <Card variant="default" style={{ marginBottom: Spacing['2xl'] }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
                 <Ionicons name="bulb" size={20} color={Colors.secondary.info} style={{ marginRight: Spacing.sm }} />
@@ -285,11 +351,11 @@ export default function AchievementDetailsScreen() {
                 </Typography>
               </View>
 
-              {achievement.tips.map((tip, index) => (
+              {task.tips.map((tip, index) => (
                 <View key={index} style={{
                   flexDirection: 'row',
                   alignItems: 'flex-start',
-                  marginBottom: index < achievement.tips!.length - 1 ? Spacing.md : 0,
+                  marginBottom: index < task.tips!.length - 1 ? Spacing.md : 0,
                 }}>
                   <View style={{
                     width: 6,
@@ -308,7 +374,7 @@ export default function AchievementDetailsScreen() {
           )}
 
           {/* Requirements Section */}
-          {achievement.requirements && achievement.requirements.length > 0 && (
+          {task.requirements && task.requirements.length > 0 && (
             <Card variant="default" style={{ marginBottom: Spacing['2xl'] }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
                 <Ionicons name="list" size={20} color={themeColors.icon.primary} style={{ marginRight: Spacing.sm }} />
@@ -317,11 +383,11 @@ export default function AchievementDetailsScreen() {
                 </Typography>
               </View>
 
-              {achievement.requirements.map((requirement, index) => (
+              {task.requirements.map((requirement, index) => (
                 <View key={index} style={{
                   flexDirection: 'row',
                   alignItems: 'flex-start',
-                  marginBottom: index < achievement.requirements!.length - 1 ? Spacing.md : 0,
+                  marginBottom: index < task.requirements!.length - 1 ? Spacing.md : 0,
                 }}>
                   <Ionicons
                     name="checkmark-circle-outline"
@@ -340,8 +406,8 @@ export default function AchievementDetailsScreen() {
           {/* Action Buttons */}
           <View style={{ flexDirection: 'row', gap: Spacing.md }}>
             <Button
-              title="Share Achievement"
-              onPress={handleShareAchievement}
+              title="Share Task"
+              onPress={handleShareTask}
               variant="secondary"
               icon={<Ionicons name="share" size={20} color={themeColors.text.primary} />}
               style={{ flex: 1 }}
@@ -349,7 +415,7 @@ export default function AchievementDetailsScreen() {
 
             <Button
               title="View All"
-              onPress={handleViewAllAchievements}
+              onPress={handleViewAllTasks}
               variant="primary"
               icon={<Ionicons name="trophy" size={20} color={Colors.neutral.white} />}
               style={{ flex: 1 }}

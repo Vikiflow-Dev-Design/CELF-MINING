@@ -4,26 +4,48 @@
 
 import { useLocalSearchParams } from 'expo-router';
 import { Share } from 'react-native';
+import { useState, useEffect } from 'react';
+import { apiService, Transaction } from '@/services/apiService';
 import type { TransactionDetail } from '../types';
 
 export const useTransactionDetails = () => {
   const { id } = useLocalSearchParams();
-  
-  // Mock transaction data - in real app, fetch by ID
-  const transaction: TransactionDetail = {
-    id: id as string || '1',
-    type: 'sent',
-    amount: 125.5,
-    status: 'completed',
-    timestamp: '2024-12-15T10:30:00Z',
-    fromAddress: '0x1234...5678',
-    toAddress: '0x8765...4321',
-    fee: 0.001,
-    confirmations: 12,
-    blockHash: '0xabcd...efgh',
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTransaction = async () => {
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('🔍 TransactionDetails: Fetching transaction...', { id });
+
+      const response = await apiService.getTransactionById(id as string);
+
+      if (response.success && response.data) {
+        console.log('✅ TransactionDetails: Transaction fetched:', response.data);
+        setTransaction(response.data);
+      } else {
+        throw new Error(response.message || 'Transaction not found');
+      }
+    } catch (err) {
+      console.error('❌ TransactionDetails: Fetch failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch transaction');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchTransaction();
+  }, [id]);
+
   const shareTransaction = async () => {
+    if (!transaction) return;
+
     try {
       await Share.share({
         message: `CELF Transaction: ${transaction.amount} CELF ${transaction.type} - ID: ${transaction.id}`,
@@ -37,5 +59,8 @@ export const useTransactionDetails = () => {
   return {
     transaction,
     shareTransaction,
+    loading,
+    error,
+    refetch: fetchTransaction
   };
 };

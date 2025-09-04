@@ -213,11 +213,23 @@ class ApiService {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
-  ): Promise<ApiResponse<{ user: User }>> {
+    lastName: string,
+    referralCode?: string
+  ): Promise<ApiResponse<{
+    user: User;
+    referral?: {
+      processed: boolean;
+      bonus: number;
+    };
+  }>> {
+    const body: any = { email, password, firstName, lastName };
+    if (referralCode) {
+      body.referralCode = referralCode;
+    }
+
     return this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, firstName, lastName }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -324,6 +336,22 @@ class ApiService {
     return this.request('/wallet/balance');
   }
 
+  async getTransactions(page: number = 1, limit: number = 20): Promise<ApiResponse<{
+    transactions: Transaction[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }>> {
+    return this.request(`/wallet/transactions?page=${page}&limit=${limit}`);
+  }
+
+  async getTransactionById(id: string): Promise<ApiResponse<Transaction>> {
+    return this.request(`/wallet/transactions/${id}`);
+  }
+
   async exchangeTokens(
     amount: number,
     fromType: 'sendable' | 'nonSendable',
@@ -356,15 +384,88 @@ class ApiService {
     amount: number,
     description?: string
   ): Promise<ApiResponse<Transaction & { recipient?: { name: string; address: string } }>> {
-    return this.request('/wallet/send', {
-      method: 'POST',
-      body: JSON.stringify({ toAddress, amount, description }),
-    });
+    console.log('🚀 ApiService: Sending tokens...', { toAddress, amount, description });
+
+    // Check if we have a token
+    const token = await this.getToken();
+    console.log('🔑 ApiService: Current token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+
+    if (!token) {
+      console.error('❌ ApiService: No authentication token available');
+      throw new Error('Authentication required. Please login first.');
+    }
+
+    try {
+      console.log('📡 ApiService: Making request to /wallet/send...');
+      const response = await this.request('/wallet/send', {
+        method: 'POST',
+        body: JSON.stringify({ toAddress, amount, description }),
+      });
+
+      console.log('✅ ApiService: Send tokens response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ ApiService: Send tokens failed:', error);
+
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          throw new Error('Authentication failed. Please login again.');
+        } else if (error.message.includes('400')) {
+          throw new Error('Invalid request. Please check the recipient address and amount.');
+        } else if (error.message.includes('500')) {
+          throw new Error('Server error. Please try again later.');
+        }
+      }
+
+      throw error;
+    }
   }
 
-  // User search and lookup methods
-  async searchUsers(query: string, limit: number = 10): Promise<ApiResponse<UserSearchResult[]>> {
-    return this.request(`/users/search?query=${encodeURIComponent(query)}&limit=${limit}`);
+
+  async sendTokensByEmail(
+    toEmail: string,
+    amount: number,
+    description?: string
+  ): Promise<ApiResponse<Transaction & { recipient?: { name: string; email: string } }>> {
+    console.log('🚀 ApiService: Sending tokens by email...', { toEmail, amount, description });
+
+    // Check if we have a token
+    const token = await this.getToken();
+    console.log('🔑 ApiService: Current token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+
+    if (!token) {
+      console.error('❌ ApiService: No authentication token available');
+      throw new Error('Authentication required. Please login first.');
+    }
+
+    try {
+      console.log('📡 ApiService: Making request to /wallet/send-by-email...');
+      const response = await this.request('/wallet/send-by-email', {
+        method: 'POST',
+        body: JSON.stringify({ toEmail, amount, description }),
+      });
+
+      console.log('✅ ApiService: Send tokens by email response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ ApiService: Send tokens by email failed:', error);
+
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          throw new Error('Authentication failed. Please login again.');
+        } else if (error.message.includes('400')) {
+          throw new Error('Invalid request. Please check the recipient email and amount.');
+        } else if (error.message.includes('404')) {
+          throw new Error('Recipient not found. Please check the email address.');
+        } else if (error.message.includes('500')) {
+          throw new Error('Server error. Please try again later.');
+        }
+      }
+
+      throw error;
+    }
   }
 
   async validateAddress(address: string): Promise<ApiResponse<UserInfo>> {
@@ -437,6 +538,308 @@ class ApiService {
     }
   }>> {
     return this.request('/mining/rate');
+  }
+
+  // Referral endpoints
+  async getReferralInfo(): Promise<ApiResponse<{
+    referralCode: string;
+    referralLink: string;
+    stats: {
+      total: number;
+      pending: number;
+      completed: number;
+      rewarded: number;
+      totalEarned: number;
+    };
+    referrals: Array<{
+      id: string;
+      referee: {
+        name: string;
+        email: string;
+      };
+      status: string;
+      reward: number;
+      date: string;
+    }>;
+  }>> {
+    return this.request('/referrals/info');
+  }
+
+  async validateReferralCode(code: string): Promise<ApiResponse<{
+    valid: boolean;
+    referrer?: {
+      name: string;
+      email: string;
+    };
+  }>> {
+    return this.request(`/referrals/validate/${encodeURIComponent(code)}`);
+  }
+
+  async getReferralHistory(page: number = 1, limit: number = 20): Promise<ApiResponse<{
+    referrals: Array<{
+      id: string;
+      referee: {
+        name: string;
+        email: string;
+        joinDate: string;
+      };
+      status: string;
+      reward: number;
+      rewardGiven: boolean;
+      signupDate: string;
+      source: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }>> {
+    return this.request(`/referrals/history?page=${page}&limit=${limit}`);
+  }
+
+  async getReferralLeaderboard(limit: number = 10): Promise<ApiResponse<{
+    leaderboard: Array<{
+      rank: number;
+      name: string;
+      referrals: number;
+      earned: number;
+    }>;
+  }>> {
+    return this.request(`/referrals/leaderboard?limit=${limit}`);
+  }
+
+  async generateReferralCode(): Promise<ApiResponse<{
+    referralCode: string;
+    referralLink: string;
+  }>> {
+    return this.request('/referrals/generate-code', {
+      method: 'POST',
+    });
+  }
+
+  // Achievements endpoints
+  async getAchievements(category?: string, completed?: boolean): Promise<ApiResponse<{
+    achievements: any[];
+    stats: {
+      totalAchievements: number;
+      completedAchievements: number;
+      completionPercentage: number;
+      unclaimedRewards: number;
+      totalUnclaimedRewardValue: number;
+    };
+    categories: Array<{
+      key: string;
+      label: string;
+      icon: string;
+      color: string;
+    }>;
+  }>> {
+    let endpoint = '/achievements';
+    const params = new URLSearchParams();
+
+    if (category && category !== 'all') {
+      params.append('category', category);
+    }
+
+    if (completed !== undefined) {
+      params.append('completed', completed.toString());
+    }
+
+    if (params.toString()) {
+      endpoint += `?${params.toString()}`;
+    }
+
+    return this.request(endpoint);
+  }
+
+  async getAchievementDetails(achievementId: string): Promise<ApiResponse<any>> {
+    return this.request(`/achievements/${achievementId}`);
+  }
+
+  async claimAchievementReward(achievementId: string): Promise<ApiResponse<{
+    success: boolean;
+    reward: number;
+    message: string;
+  }>> {
+    return this.request(`/achievements/${achievementId}/claim`, {
+      method: 'POST',
+    });
+  }
+
+  async getAchievementStats(): Promise<ApiResponse<{
+    totalAchievements: number;
+    completedAchievements: number;
+    completionPercentage: number;
+    unclaimedRewards: number;
+    totalUnclaimedRewardValue: number;
+  }>> {
+    return this.request('/achievements/stats');
+  }
+
+  async initializeAchievements(): Promise<ApiResponse<{
+    initializedCount: number;
+  }>> {
+    return this.request('/achievements/initialize', {
+      method: 'POST',
+    });
+  }
+
+  // Tasks endpoints
+  async getTasks(category?: string, completed?: boolean): Promise<ApiResponse<{
+    tasks: any[];
+    stats: {
+      totalTasks: number;
+      completedTasks: number;
+      completionPercentage: number;
+      unclaimedRewards: number;
+      totalUnclaimedRewardValue: number;
+    };
+    categories: Array<{
+      key: string;
+      label: string;
+      icon: string;
+      color: string;
+    }>;
+  }>> {
+    let endpoint = '/tasks';
+    const params = new URLSearchParams();
+
+    if (category && category !== 'all') {
+      params.append('category', category);
+    }
+
+    if (completed !== undefined) {
+      params.append('completed', completed.toString());
+    }
+
+    if (params.toString()) {
+      endpoint += `?${params.toString()}`;
+    }
+
+    return this.request(endpoint);
+  }
+
+  async getTaskDetails(taskId: string): Promise<ApiResponse<any>> {
+    return this.request(`/tasks/${taskId}`);
+  }
+
+  async claimTaskReward(taskId: string): Promise<ApiResponse<{
+    success: boolean;
+    reward: number;
+    message: string;
+  }>> {
+    return this.request(`/tasks/${taskId}/claim`, {
+      method: 'POST',
+    });
+  }
+
+  async getTaskStats(): Promise<ApiResponse<{
+    totalTasks: number;
+    completedTasks: number;
+    completionPercentage: number;
+    unclaimedRewards: number;
+    totalUnclaimedRewardValue: number;
+  }>> {
+    return this.request('/tasks/stats');
+  }
+
+  async initializeTasks(): Promise<ApiResponse<{
+    initializedCount: number;
+  }>> {
+    return this.request('/tasks/initialize', {
+      method: 'POST',
+    });
+  }
+
+  // Profile endpoints
+  async getProfile(): Promise<ApiResponse<{
+    profilePicture: string | null;
+    username: string;
+    displayName: string;
+    bio: string;
+    email: string;
+    phone: string;
+    country: string;
+    joinDate: string;
+    totalMined: number;
+    referrals: number;
+    achievements: number;
+    isProfileComplete: boolean;
+    userId: string;
+    firstName: string;
+    lastName: string;
+  }>> {
+    return this.request('/profile');
+  }
+
+  async updateProfile(profileData: {
+    username?: string;
+    displayName?: string;
+    bio?: string;
+    phone?: string;
+    country?: string;
+    firstName?: string;
+    lastName?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  async uploadProfilePicture(imageUrl: string): Promise<ApiResponse<{
+    profilePicture: string;
+  }>> {
+    return this.request('/profile/picture', {
+      method: 'POST',
+      body: JSON.stringify({ imageUrl }),
+    });
+  }
+
+  async getProfileCompletion(): Promise<ApiResponse<{
+    isComplete: boolean;
+    completionPercentage: number;
+    completedCount: number;
+    totalCount: number;
+    fields: Array<{
+      field: string;
+      label: string;
+      completed: boolean;
+    }>;
+  }>> {
+    return this.request('/profile/completion');
+  }
+
+  async searchUsers(query: string, limit?: number): Promise<ApiResponse<{
+    users: Array<{
+      userId: string;
+      username: string;
+      displayName: string;
+      profilePicture: string | null;
+    }>;
+    query: string;
+    count: number;
+  }>> {
+    const params = new URLSearchParams({ q: query });
+    if (limit) params.append('limit', limit.toString());
+
+    return this.request(`/profile/search?${params.toString()}`);
+  }
+
+  async getUserProfile(userId: string): Promise<ApiResponse<{
+    userId: string;
+    username: string;
+    displayName: string;
+    bio: string;
+    profilePicture: string | null;
+    joinDate: string;
+    totalMined: number;
+    referrals: number;
+    achievements: number;
+  }>> {
+    return this.request(`/profile/user/${userId}`);
   }
 
   // Health check

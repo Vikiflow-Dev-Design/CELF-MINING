@@ -4,9 +4,9 @@
  */
 
 import React from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
+import { View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui';
+import { Button, Typography } from '@/components/ui';
 import { Header } from '@/components/navigation/Header';
 import { useNavigation } from '@/components/navigation/NavigationContext';
 import { Colors, Spacing, Layout } from '@/constants/design-tokens';
@@ -16,7 +16,7 @@ import { useTransactionDetails } from '@/src/features/transaction-details/hooks/
 
 export default function TransactionDetailsScreen() {
   const { toggleSidebar } = useNavigation();
-  const { transaction, shareTransaction } = useTransactionDetails();
+  const { transaction, shareTransaction, loading, error, refetch } = useTransactionDetails();
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background.secondary }}>
@@ -36,14 +36,47 @@ export default function TransactionDetailsScreen() {
           paddingTop: Spacing['2xl'],
           paddingBottom: 32,
         }}>
-          <TransactionHeader transaction={transaction} />
-          
-          <Button
-            title="Share Transaction"
-            onPress={shareTransaction}
-            variant="secondary"
-            icon={<Ionicons name="share-outline" size={20} color={Colors.primary.blue} />}
-          />
+          {/* Loading State */}
+          {loading && (
+            <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
+              <ActivityIndicator size="large" color={Colors.primary.blue} />
+              <Typography variant="bodyMedium" color="secondary" style={{ marginTop: Spacing.md }}>
+                Loading transaction details...
+              </Typography>
+            </View>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <View style={{ alignItems: 'center', paddingVertical: Spacing.xl }}>
+              <Ionicons name="alert-circle-outline" size={48} color={Colors.text.secondary} />
+              <Typography variant="h3" weight="bold" style={{ marginTop: Spacing.md, marginBottom: Spacing.sm }}>
+                Error Loading Transaction
+              </Typography>
+              <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center', marginBottom: Spacing.xl }}>
+                {error}
+              </Typography>
+              <Button
+                title="Try Again"
+                onPress={refetch}
+                variant="primary"
+              />
+            </View>
+          )}
+
+          {/* Transaction Details */}
+          {transaction && !loading && !error && (
+            <>
+              <TransactionHeader transaction={transaction} />
+
+              <Button
+                title="Share Transaction"
+                onPress={shareTransaction}
+                variant="secondary"
+                icon={<Ionicons name="share-outline" size={20} color={Colors.primary.blue} />}
+              />
+            </>
+          )}
         </View>
       </ScrollView>
     </View>

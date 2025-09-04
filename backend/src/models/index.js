@@ -12,10 +12,14 @@ const NewsletterSubscription = require('./NewsletterSubscription');
 const NewsletterCampaign = require('./NewsletterCampaign');
 const MentorshipApplication = require('./MentorshipApplication');
 const AdminSettings = require('./AdminSettings');
+const Achievement = require('./Achievement');
+const UserAchievement = require('./UserAchievement');
+const Task = require('./Task');
+const UserTask = require('./UserTask');
 
 // Note: Additional models to be created:
 // - MentorshipConnection
-// - MentorshipSession  
+// - MentorshipSession
 // - ScholarshipApplication
 // - ScholarshipAward
 // - ScholarshipDisbursement
@@ -31,5 +35,9 @@ module.exports = {
   NewsletterSubscription,
   NewsletterCampaign,
   MentorshipApplication,
-  AdminSettings
+  AdminSettings,
+  Achievement,
+  UserAchievement,
+  Task,
+  UserTask
 };

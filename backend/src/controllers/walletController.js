@@ -1,5 +1,7 @@
 const mongodbService = require('../services/mongodbService');
+const achievementService = require('../services/achievementService');
 const { createResponse } = require('../utils/responseUtils');
+const Transaction = require('../models/Transaction');
 
 class WalletController {
   async getBalance(req, res, next) {
@@ -125,6 +127,10 @@ class WalletController {
       const limit = parseInt(req.query.limit) || 20;
       const skip = (page - 1) * limit;
 
+      console.log('🔍 WalletController: getTransactions called');
+      console.log('👤 Authenticated user ID:', userId);
+      console.log('📄 Pagination:', { page, limit, skip });
+
       const transactions = await Transaction.find({
         $or: [{ fromUserId: userId }, { toUserId: userId }]
       })
@@ -134,12 +140,69 @@ class WalletController {
         .populate('fromUserId', 'firstName lastName')
         .populate('toUserId', 'firstName lastName');
 
+      console.log(`📊 Found ${transactions.length} transactions for user ${userId}`);
+      console.log('📋 Transaction details:');
+      transactions.forEach((tx, index) => {
+        console.log(`  ${index + 1}. ${tx.type} - ${tx.amount} CELF`);
+        console.log(`     From: ${tx.fromUserId?._id || tx.fromUserId} (${tx.fromUserId?.firstName || 'Unknown'})`);
+        console.log(`     To: ${tx.toUserId?._id || tx.toUserId} (${tx.toUserId?.firstName || 'Unknown'})`);
+        console.log(`     Description: ${tx.description}`);
+      });
+
       const total = await Transaction.countDocuments({
         $or: [{ fromUserId: userId }, { toUserId: userId }]
       });
 
+      // Transform transactions based on user perspective
+      const transformedTransactions = transactions.map(tx => {
+        const isUserSender = tx.fromUserId?._id?.toString() === userId.toString();
+        const isUserRecipient = tx.toUserId?._id?.toString() === userId.toString();
+
+        let displayType = tx.type;
+        let displayAmount = tx.amount;
+        let displayDescription = tx.description;
+
+        // Determine display type based on user perspective
+        if (tx.type === 'send' || tx.type === 'receive' || tx.type === 'transfer') {
+          if (isUserSender) {
+            displayType = 'send';
+            displayAmount = tx.amount; // Positive amount, will be shown as negative in UI
+            if (tx.toUserId) {
+              displayDescription = `Sent to ${tx.toUserId.firstName} ${tx.toUserId.lastName}`;
+            }
+          } else if (isUserRecipient) {
+            displayType = 'receive';
+            displayAmount = tx.amount; // Positive amount
+            if (tx.fromUserId) {
+              displayDescription = `Received from ${tx.fromUserId.firstName} ${tx.fromUserId.lastName}`;
+            }
+          }
+        }
+
+        return {
+          id: tx._id,
+          type: displayType,
+          amount: displayAmount,
+          status: tx.status,
+          description: displayDescription,
+          createdAt: tx.createdAt,
+          fee: tx.fee || 0,
+          toAddress: tx.toAddress,
+          fromUser: tx.fromUserId ? {
+            id: tx.fromUserId._id,
+            firstName: tx.fromUserId.firstName,
+            lastName: tx.fromUserId.lastName
+          } : null,
+          toUser: tx.toUserId ? {
+            id: tx.toUserId._id,
+            firstName: tx.toUserId.firstName,
+            lastName: tx.toUserId.lastName
+          } : null
+        };
+      });
+
       res.json(createResponse(true, 'Transactions retrieved successfully', {
-        transactions,
+        transactions: transformedTransactions,
         pagination: {
           page,
           limit,
@@ -168,7 +231,50 @@ class WalletController {
         return res.status(404).json(createResponse(false, 'Transaction not found'));
       }
 
-      res.json(createResponse(true, 'Transaction retrieved successfully', { transaction }));
+      // Transform transaction based on user perspective
+      const isUserSender = transaction.fromUserId?._id?.toString() === userId.toString();
+      const isUserRecipient = transaction.toUserId?._id?.toString() === userId.toString();
+
+      let displayType = transaction.type;
+      let displayDescription = transaction.description;
+
+      // Determine display type based on user perspective
+      if (transaction.type === 'send' || transaction.type === 'receive' || transaction.type === 'transfer') {
+        if (isUserSender) {
+          displayType = 'send';
+          if (transaction.toUserId) {
+            displayDescription = `Sent to ${transaction.toUserId.firstName} ${transaction.toUserId.lastName}`;
+          }
+        } else if (isUserRecipient) {
+          displayType = 'receive';
+          if (transaction.fromUserId) {
+            displayDescription = `Received from ${transaction.fromUserId.firstName} ${transaction.fromUserId.lastName}`;
+          }
+        }
+      }
+
+      const transformedTransaction = {
+        id: transaction._id,
+        type: displayType,
+        amount: transaction.amount,
+        status: transaction.status,
+        description: displayDescription,
+        createdAt: transaction.createdAt,
+        fee: transaction.fee || 0,
+        toAddress: transaction.toAddress,
+        fromUser: transaction.fromUserId ? {
+          id: transaction.fromUserId._id,
+          firstName: transaction.fromUserId.firstName,
+          lastName: transaction.fromUserId.lastName
+        } : null,
+        toUser: transaction.toUserId ? {
+          id: transaction.toUserId._id,
+          firstName: transaction.toUserId.firstName,
+          lastName: transaction.toUserId.lastName
+        } : null
+      };
+
+      res.json(createResponse(true, 'Transaction retrieved successfully', { transaction: transformedTransaction }));
     } catch (error) {
       next(error);
     }
@@ -248,6 +354,19 @@ class WalletController {
         lastActivity: new Date()
       });
 
+      // Track achievement progress for transactions
+      try {
+        await achievementService.trackTransactionProgress(userId, {
+          transactionId: senderTransaction.id,
+          amount,
+          type: 'send',
+          recipientId: recipient.id
+        });
+      } catch (achievementError) {
+        console.error('Error tracking transaction achievement progress:', achievementError);
+        // Don't fail the transaction if achievement tracking fails
+      }
+
       res.status(201).json(createResponse(true, 'Transaction completed successfully', {
         transaction: senderTransaction,
         recipient: {
@@ -256,6 +375,106 @@ class WalletController {
         }
       }));
     } catch (error) {
+      next(error);
+    }
+  }
+
+  async sendTokensByEmail(req, res, next) {
+    try {
+      const userId = req.user.userId;
+      const { toEmail, amount, description } = req.body;
+
+      console.log(`🚀 WalletController: Sending ${amount} CELF to ${toEmail}...`);
+
+      // Get sender wallet
+      const senderWallet = await mongodbService.findWalletByUserId(userId);
+      if (!senderWallet) {
+        return res.status(404).json(createResponse(false, 'Sender wallet not found'));
+      }
+
+      // Check balance
+      if (amount > senderWallet.sendableBalance) {
+        return res.status(400).json(createResponse(false, 'Insufficient sendable balance'));
+      }
+
+      // Find recipient by email
+      const recipient = await mongodbService.findUserByEmail(toEmail);
+      if (!recipient) {
+        return res.status(404).json(createResponse(false, 'Recipient not found with this email address'));
+      }
+
+      // Get recipient wallet
+      const recipientWallet = await mongodbService.findWalletByUserId(recipient.id);
+      if (!recipientWallet) {
+        return res.status(404).json(createResponse(false, 'Recipient wallet not found'));
+      }
+
+      // Prevent self-sending
+      if (userId === recipient.id) {
+        return res.status(400).json(createResponse(false, 'Cannot send tokens to yourself'));
+      }
+
+      console.log(`📊 WalletController: Transfer details:`, {
+        sender: userId,
+        recipient: recipient.id,
+        amount,
+        senderBalance: senderWallet.sendableBalance
+      });
+
+      // Create single transaction record (will be displayed differently based on user perspective)
+      const transaction = await mongodbService.createTransaction({
+        fromUserId: userId,
+        toUserId: recipient.id,
+        toAddress: recipientWallet.currentAddress,
+        amount,
+        type: 'transfer', // Use 'transfer' as the base type
+        status: 'completed',
+        description: description || `Transfer between ${req.user.email} and ${recipient.email}`,
+        fee: 0
+      });
+
+      // Update sender wallet (deduct from sendable balance)
+      const newSenderSendableBalance = senderWallet.sendableBalance - amount;
+      await mongodbService.updateWallet(senderWallet.id, {
+        sendableBalance: newSenderSendableBalance,
+        totalBalance: newSenderSendableBalance + senderWallet.nonSendableBalance + senderWallet.pendingBalance,
+        totalSent: (senderWallet.totalSent || 0) + amount,
+        lastActivity: new Date()
+      });
+
+      // Update recipient wallet (add to sendable balance)
+      const newRecipientSendableBalance = recipientWallet.sendableBalance + amount;
+      await mongodbService.updateWallet(recipientWallet.id, {
+        sendableBalance: newRecipientSendableBalance,
+        totalBalance: newRecipientSendableBalance + recipientWallet.nonSendableBalance + recipientWallet.pendingBalance,
+        totalReceived: (recipientWallet.totalReceived || 0) + amount,
+        lastActivity: new Date()
+      });
+
+      // Track achievement progress for transactions
+      try {
+        await achievementService.trackTransactionProgress(userId, {
+          transactionId: transaction.id,
+          amount,
+          type: 'send',
+          recipientId: recipient.id
+        });
+      } catch (achievementError) {
+        console.error('Error tracking transaction achievement progress:', achievementError);
+        // Don't fail the transaction if achievement tracking fails
+      }
+
+      console.log(`✅ WalletController: Transfer completed successfully`);
+
+      res.status(201).json(createResponse(true, 'Transaction completed successfully', {
+        transaction: transaction,
+        recipient: {
+          name: `${recipient.firstName} ${recipient.lastName}`,
+          email: recipient.email
+        }
+      }));
+    } catch (error) {
+      console.error('❌ WalletController: Send by email failed:', error);
       next(error);
     }
   }

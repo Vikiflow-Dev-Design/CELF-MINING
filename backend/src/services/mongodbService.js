@@ -526,7 +526,32 @@ class MongoDBService {
       const searchQuery = query.trim();
       const searchRegex = new RegExp(searchQuery.split(' ').join('|'), 'i');
 
-      // Create comprehensive search conditions
+      console.log(`🔍 MongoDB Service: Searching users with query: "${searchQuery}"`);
+
+      // Check if query looks like a wallet address
+      const isWalletAddressQuery = searchQuery.startsWith('celf') && searchQuery.length >= 8;
+
+      let usersByWalletAddress = [];
+      if (isWalletAddressQuery) {
+        console.log(`🔍 MongoDB Service: Detected wallet address search: ${searchQuery}`);
+
+        // Search by wallet address first
+        const wallets = await Wallet.find({
+          currentAddress: { $regex: searchQuery, $options: 'i' }
+        }).limit(limit);
+
+        if (wallets.length > 0) {
+          const userIds = wallets.map(w => w.userId);
+          usersByWalletAddress = await User.find({
+            _id: { $in: userIds },
+            isActive: true
+          }).select('id email firstName lastName').lean();
+
+          console.log(`✅ MongoDB Service: Found ${usersByWalletAddress.length} users by wallet address`);
+        }
+      }
+
+      // Create comprehensive search conditions for name/email search
       const searchConditions = [
         // Email search (exact and partial)
         { email: { $regex: searchQuery, $options: 'i' } },
@@ -573,8 +598,8 @@ class MongoDBService {
         });
       }
 
-      // Search users with improved conditions
-      const users = await User.find({
+      // Search users with improved conditions (name/email search)
+      const usersByNameEmail = await User.find({
         $or: searchConditions,
         isActive: true
       })
@@ -582,18 +607,30 @@ class MongoDBService {
       .limit(limit * 2) // Get more results to sort and filter
       .lean();
 
+      // Combine wallet address results with name/email results
+      const allUsers = [...usersByWalletAddress, ...usersByNameEmail];
+
       // Remove duplicates and sort by relevance
-      const uniqueUsers = users.filter((user, index, self) =>
+      const uniqueUsers = allUsers.filter((user, index, self) =>
         index === self.findIndex(u => u.id === user.id)
       );
 
-      // Sort by relevance (exact matches first, then partial matches)
+      console.log(`📊 MongoDB Service: Combined results - ${uniqueUsers.length} unique users found`);
+
+      // Sort by relevance (wallet address matches first, then exact matches, then partial matches)
       const sortedUsers = uniqueUsers.sort((a, b) => {
         const aFullName = `${a.firstName} ${a.lastName}`.toLowerCase();
         const bFullName = `${b.firstName} ${b.lastName}`.toLowerCase();
         const queryLower = searchQuery.toLowerCase();
 
-        // Exact full name match gets highest priority
+        // Wallet address matches get highest priority (if this was a wallet search)
+        const aIsWalletMatch = usersByWalletAddress.some(u => u.id === a.id);
+        const bIsWalletMatch = usersByWalletAddress.some(u => u.id === b.id);
+
+        if (aIsWalletMatch && !bIsWalletMatch) return -1;
+        if (bIsWalletMatch && !aIsWalletMatch) return 1;
+
+        // Exact full name match gets next highest priority
         if (aFullName === queryLower) return -1;
         if (bFullName === queryLower) return 1;
 
@@ -622,14 +659,23 @@ class MongoDBService {
 
       // Get wallet addresses for each user
       const finalUsers = sortedUsers.slice(0, limit);
-      const userIds = finalUsers.map(user => user.id);
+      const userIds = finalUsers.map(user => user._id || user.id);
+
+      console.log(`🔍 MongoDB Service: Looking up wallets for user IDs:`, userIds);
+
       const wallets = await Wallet.find({ userId: { $in: userIds } })
         .select('userId currentAddress')
         .lean();
 
+      console.log(`💰 MongoDB Service: Found ${wallets.length} wallets:`, wallets.map(w => ({ userId: w.userId, address: w.currentAddress?.substring(0, 20) + '...' })));
+
       // Combine user data with wallet addresses
       const usersWithWallets = finalUsers.map(user => {
-        const wallet = wallets.find(w => w.userId.toString() === user.id.toString());
+        const userId = user._id || user.id;
+        const wallet = wallets.find(w => w.userId.toString() === userId.toString());
+
+        console.log(`👤 MongoDB Service: User ${user.firstName} ${user.lastName} (${userId}) -> Wallet: ${wallet?.currentAddress?.substring(0, 20)}...`);
+
         return {
           ...user,
           walletAddress: wallet?.currentAddress || null

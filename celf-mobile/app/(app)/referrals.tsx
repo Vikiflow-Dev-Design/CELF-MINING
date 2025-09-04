@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Typography } from '@/components/ui';
 import { Header } from '@/components/navigation/Header';
@@ -23,6 +23,8 @@ export default function ReferralsScreen() {
     referralCode,
     referralLink,
     stats,
+    isLoading,
+    error,
     shareReferralLink,
     copyReferralCode,
     copyReferralLink,
@@ -63,8 +65,42 @@ export default function ReferralsScreen() {
           paddingTop: Spacing['2xl'],
           paddingBottom: 32,
         }}>
-          
-          {/* Stats Card */}
+
+          {/* Error State */}
+          {error && (
+            <Card variant="default" style={{ marginBottom: Spacing['2xl'], backgroundColor: '#fee2e2' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="warning" size={24} color="#dc2626" style={{ marginRight: Spacing.md }} />
+                <View style={{ flex: 1 }}>
+                  <Typography variant="bodyMedium" color="primary" weight="semibold">
+                    Error Loading Referral Data
+                  </Typography>
+                  <Typography variant="bodySmall" color="secondary" style={{ marginTop: Spacing.xs }}>
+                    {error}
+                  </Typography>
+                </View>
+              </View>
+            </Card>
+          )}
+
+          {/* Loading State */}
+          {isLoading && !error && (
+            <View style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: Spacing['3xl']
+            }}>
+              <ActivityIndicator size="large" color={themeColors.primary.blue} />
+              <Typography variant="bodyMedium" color="secondary" style={{ marginTop: Spacing.md }}>
+                Loading referral data...
+              </Typography>
+            </View>
+          )}
+
+          {/* Content - only show when not loading and no error */}
+          {!isLoading && !error && (
+            <>
+              {/* Stats Card */}
           <Card variant="gradient" gradientColors={[Colors.primary.blue, Colors.primary.light]} style={{ marginBottom: Spacing['2xl'] }}>
             <Typography variant="h3" color="inverse" weight="semibold" style={{ marginBottom: Spacing.lg }}>
               Referral Stats
@@ -135,6 +171,8 @@ export default function ReferralsScreen() {
               </View>
             </View>
           </Card>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>

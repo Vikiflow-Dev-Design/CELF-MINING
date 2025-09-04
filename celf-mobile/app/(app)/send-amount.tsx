@@ -4,13 +4,17 @@
  */
 
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
+import { View, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Typography } from '@/components/ui';
+import { Button, Typography, Card } from '@/components/ui';
 import { Header } from '@/components/navigation/Header';
 import { useNavigation } from '@/components/navigation/NavigationContext';
-import { Colors, Spacing } from '@/constants/design-tokens';
+import { Colors, Spacing, BorderRadius } from '@/constants/design-tokens';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useWalletStore } from '@/stores/walletStore';
+import { useAuthStore } from '@/stores/authStore';
+import { SendConfirmationModal } from '@/components/modals/SendConfirmationModal';
+import { checkAuthStatus, testTokenSendingFlow } from '@/utils/testHelpers';
 
 export default function SendAmountScreen() {
   const { toggleSidebar } = useNavigation();
@@ -20,11 +24,12 @@ export default function SendAmountScreen() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock balance data - replace with actual API call
-  const balance = 1000.5678;
-  const getFormattedBalance = (value: number) => `${value.toFixed(4)} CELF`;
+  // Get real wallet data and auth state
+  const { balanceBreakdown, getFormattedBalance, sendTokens } = useWalletStore();
+  const { isSignedIn, user } = useAuthStore();
+  const sendableBalance = balanceBreakdown.sendable;
 
-  const user = {
+  const recipient = {
     id: params.userId as string,
     firstName: params.firstName as string,
     lastName: params.lastName as string,
@@ -32,30 +37,125 @@ export default function SendAmountScreen() {
     walletAddress: params.walletAddress as string,
   };
 
+  // Validate recipient data
+  if (!recipient.id || !recipient.firstName || !recipient.lastName || !recipient.email) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.background.secondary, justifyContent: 'center', alignItems: 'center' }}>
+        <Typography variant="h3" weight="bold" style={{ marginBottom: Spacing.md }}>
+          Invalid Recipient Data
+        </Typography>
+        <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center', marginBottom: Spacing.xl }}>
+          Missing recipient information. Please go back and select a user again.
+        </Typography>
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
+          variant="primary"
+        />
+      </View>
+    );
+  }
+
   const handleConfirm = () => {
-    if (!amount || parseFloat(amount) <= 0) return;
+    const sendAmount = parseFloat(amount);
+
+    if (!amount || sendAmount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid amount greater than 0');
+      return;
+    }
+
+    if (sendAmount > sendableBalance) {
+      Alert.alert(
+        'Insufficient Balance',
+        `You only have ${getFormattedBalance(sendableBalance)} available to send. Exchange some tokens first to increase your sendable balance.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Exchange Tokens', onPress: () => router.push('/(app)/exchange') }
+        ]
+      );
+      return;
+    }
+
     setShowConfirmModal(true);
   };
 
   const handleSendTokens = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      // Check authentication first
+      if (!isSignedIn || !user) {
+        throw new Error('You must be logged in to send tokens. Please login and try again.');
+      }
+
+      const sendAmount = parseFloat(amount);
+
+      console.log('🚀 SendAmount: Starting token transfer...', {
+        sender: user.email,
+        recipient: recipient.firstName + ' ' + recipient.lastName,
+        amount: sendAmount,
+        walletAddress: recipient.walletAddress,
+        memo,
+        isSignedIn
+      });
+
+      if (!recipient.email) {
+        throw new Error('Recipient email is missing');
+      }
+
+      if (sendAmount <= 0) {
+        throw new Error('Invalid amount');
+      }
+
+      if (sendAmount > sendableBalance) {
+        throw new Error('Insufficient sendable balance');
+      }
+
+      // Use real wallet store to send tokens by email
+      console.log('📡 SendAmount: Calling wallet store sendTokensByEmail...');
+      const transaction = await sendTokens(recipient.email, sendAmount, memo);
+      console.log('✅ SendAmount: Transaction completed:', transaction);
+
       // Close modal and navigate back with success
       setShowConfirmModal(false);
-      router.back();
-      // You could also show a success screen or toast here
+
+      Alert.alert(
+        'Transaction Successful!',
+        `${getFormattedBalance(sendAmount)} has been sent to ${recipient.firstName} ${recipient.lastName}!\n\nTransaction ID: ${transaction.id}`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+
     } catch (error) {
-      console.error('Send tokens error:', error);
+      console.error('❌ SendAmount: Send tokens error:', error);
+
+      // More specific error messages
+      let errorMessage = 'Failed to send tokens';
+      if (error instanceof Error) {
+        if (error.message.includes('Authentication')) {
+          errorMessage = 'Authentication failed. Please login again.';
+        } else if (error.message.includes('Insufficient')) {
+          errorMessage = 'Insufficient balance. Please exchange some tokens first.';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      Alert.alert('Transaction Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   const setMaxAmount = () => {
-    setAmount(balance.toString());
+    setAmount(sendableBalance.toString());
+  };
+
+  // Debug function for testing
+  const handleDebugTest = async () => {
+    console.log('🧪 Debug: Starting comprehensive test...');
+    await checkAuthStatus();
+    await testTokenSendingFlow();
   };
 
   return (
@@ -95,19 +195,22 @@ export default function SendAmountScreen() {
               marginBottom: Spacing.md,
             }}>
               <Typography variant="h2" color="inverse" weight="bold">
-                {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                {recipient.firstName.charAt(0)}{recipient.lastName.charAt(0)}
               </Typography>
             </View>
-            
-            {/* User Info */}
+
+            {/* Recipient Info */}
             <Typography variant="h2" weight="bold" style={{ marginBottom: Spacing.xs }}>
-              {user.firstName} {user.lastName}
+              {recipient.firstName} {recipient.lastName}
             </Typography>
             <Typography variant="bodyMedium" color="secondary" style={{ marginBottom: Spacing.sm }}>
-              {user.email}
+              {recipient.email}
             </Typography>
-            <Typography variant="bodySmall" color="tertiary" style={{ textAlign: 'center' }}>
-              {user.walletAddress.slice(0, 16)}...{user.walletAddress.slice(-8)}
+            <Typography variant="bodySmall" color="tertiary" style={{ textAlign: 'center', fontFamily: 'monospace' }}>
+              {recipient.walletAddress ?
+                `${recipient.walletAddress.slice(0, 16)}...${recipient.walletAddress.slice(-8)}` :
+                'No wallet address'
+              }
             </Typography>
           </View>
 
@@ -129,10 +232,10 @@ export default function SendAmountScreen() {
             }}>
               <View>
                 <Typography variant="bodySmall" color="secondary">
-                  Available Balance
+                  Sendable Balance
                 </Typography>
                 <Typography variant="bodyLarge" weight="bold" color="primary">
-                  {getFormattedBalance(balance)}
+                  {getFormattedBalance(sendableBalance)}
                 </Typography>
               </View>
               <TouchableOpacity 
@@ -220,81 +323,19 @@ export default function SendAmountScreen() {
         </View>
       </ScrollView>
 
-      {/* Confirmation Modal */}
-      <Modal
-        visible={showConfirmModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowConfirmModal(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: Colors.background.secondary }}>
-          <Header
-            title="Confirm Transaction"
-            rightAction={
-              <TouchableOpacity onPress={() => setShowConfirmModal(false)}>
-                <Ionicons name="close" size={24} color={Colors.text.secondary} />
-              </TouchableOpacity>
-            }
-          />
-          
-          <View style={{ flex: 1, paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg }}>
-            {/* Transaction Details */}
-            <View style={{
-              backgroundColor: Colors.background.primary,
-              borderRadius: 16,
-              padding: Spacing.lg,
-              marginBottom: Spacing.xl,
-            }}>
-              <Typography variant="h3" weight="bold" style={{ marginBottom: Spacing.md }}>
-                Transaction Details
-              </Typography>
-              
-              <View style={{ marginBottom: Spacing.md }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-                  <Typography variant="bodyMedium" color="secondary">To:</Typography>
-                  <Typography variant="bodyMedium" weight="semibold">
-                    {user.firstName} {user.lastName}
-                  </Typography>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-                  <Typography variant="bodyMedium" color="secondary">Amount:</Typography>
-                  <Typography variant="bodyLarge" weight="bold" color="primary">
-                    {amount} CELF
-                  </Typography>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
-                  <Typography variant="bodyMedium" color="secondary">Fee:</Typography>
-                  <Typography variant="bodyMedium" weight="semibold" color="success">
-                    FREE
-                  </Typography>
-                </View>
-                {memo && (
-                  <View style={{ marginTop: Spacing.sm }}>
-                    <Typography variant="bodySmall" color="secondary">Note:</Typography>
-                    <Typography variant="bodyMedium" style={{ marginTop: Spacing.xs }}>
-                      "{memo}"
-                    </Typography>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Confirm Button */}
-            <Button
-              title={isLoading ? "Sending..." : "Send Tokens"}
-              onPress={handleSendTokens}
-              variant="primary"
-              loading={isLoading}
-              disabled={isLoading}
-              icon={!isLoading ? <Ionicons name="send" size={20} color={Colors.neutral.white} /> : undefined}
-              style={{
-                borderRadius: 12,
-                paddingVertical: Spacing.lg,
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
+      {/* Send Confirmation Modal */}
+      <SendConfirmationModal
+        isVisible={showConfirmModal}
+        recipient={recipient}
+        amount={amount}
+        memo={memo}
+        fee={0}
+        formattedAmount={getFormattedBalance(parseFloat(amount || '0'))}
+        formattedFee="FREE"
+        onConfirm={handleSendTokens}
+        onCancel={() => setShowConfirmModal(false)}
+        isLoading={isLoading}
+      />
     </View>
   );
 }

@@ -2,26 +2,76 @@
  * Edit Profile Hook
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { apiService } from '@/services/apiService';
 import type { ProfileData } from '../types';
 
 export const useEditProfile = () => {
   const [profileData, setProfileData] = useState<ProfileData>({
     profilePicture: null,
-    username: 'johndoe',
-    displayName: 'John Doe',
-    bio: 'CELF mining enthusiast and crypto investor. Building the future of digital currency!',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    country: 'United States',
-    joinDate: '2024-12-15',
+    username: '',
+    displayName: '',
+    bio: '',
+    email: '',
+    phone: '',
+    country: '',
+    joinDate: '',
   });
 
+  const [originalData, setOriginalData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Fetch current profile data
+  const fetchProfileData = async () => {
+    try {
+      setIsFetching(true);
+      console.log('📋 Fetching profile data for editing...');
+
+      const response = await apiService.getProfile();
+
+      if (response.success && response.data) {
+        const data: ProfileData = {
+          profilePicture: response.data.profilePicture,
+          username: response.data.username,
+          displayName: response.data.displayName,
+          bio: response.data.bio,
+          email: response.data.email,
+          phone: response.data.phone,
+          country: response.data.country,
+          joinDate: response.data.joinDate,
+        };
+
+        setProfileData(data);
+        setOriginalData(data);
+        console.log('✅ Profile data loaded for editing');
+      } else {
+        throw new Error(response.message || 'Failed to fetch profile');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching profile data:', error);
+      Alert.alert('Error', 'Failed to load profile data');
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  // Load profile data on mount
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  // Check for changes whenever profile data updates
+  useEffect(() => {
+    if (originalData) {
+      const hasDataChanged = JSON.stringify(profileData) !== JSON.stringify(originalData);
+      setHasChanges(hasDataChanged);
+    }
+  }, [profileData, originalData]);
 
   const updateField = (field: keyof ProfileData, value: string) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
@@ -44,20 +94,72 @@ export const useEditProfile = () => {
     });
 
     if (!result.canceled) {
-      updateField('profilePicture', result.assets[0].uri);
+      const imageUri = result.assets[0].uri;
+
+      try {
+        // Upload profile picture to backend
+        console.log('📸 Uploading profile picture...');
+        const uploadResponse = await apiService.uploadProfilePicture(imageUri);
+
+        if (uploadResponse.success) {
+          updateField('profilePicture', uploadResponse.data.profilePicture);
+          console.log('✅ Profile picture uploaded successfully');
+        } else {
+          throw new Error(uploadResponse.message || 'Failed to upload image');
+        }
+      } catch (error) {
+        console.error('❌ Error uploading profile picture:', error);
+        Alert.alert('Error', 'Failed to upload profile picture');
+      }
     }
   };
 
   const saveProfile = async () => {
+    if (!hasChanges) return;
+
     setIsLoading(true);
-    
-    setTimeout(() => {
+
+    try {
+      console.log('💾 Saving profile changes...');
+
+      // Prepare update data (only changed fields)
+      const updateData: any = {};
+
+      if (profileData.username !== originalData?.username) {
+        updateData.username = profileData.username;
+      }
+      if (profileData.displayName !== originalData?.displayName) {
+        updateData.displayName = profileData.displayName;
+      }
+      if (profileData.bio !== originalData?.bio) {
+        updateData.bio = profileData.bio;
+      }
+      if (profileData.phone !== originalData?.phone) {
+        updateData.phone = profileData.phone;
+      }
+      if (profileData.country !== originalData?.country) {
+        updateData.country = profileData.country;
+      }
+
+      const response = await apiService.updateProfile(updateData);
+
+      if (response.success) {
+        console.log('✅ Profile updated successfully');
+        setOriginalData(profileData);
+        setHasChanges(false);
+
+        Alert.alert('Success', 'Profile updated successfully!', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
+      } else {
+        throw new Error(response.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('❌ Error saving profile:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
       setIsLoading(false);
-      setHasChanges(false);
-      Alert.alert('Success', 'Profile updated successfully!', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
-    }, 2000);
+    }
   };
 
   const discardChanges = () => {
@@ -78,11 +180,13 @@ export const useEditProfile = () => {
   return {
     profileData,
     isLoading,
+    isFetching,
     hasChanges,
     updateField,
     pickImage,
     saveProfile,
     discardChanges,
+    refreshProfile: fetchProfileData,
   };
 };
 

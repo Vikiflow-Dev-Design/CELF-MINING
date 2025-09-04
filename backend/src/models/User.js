@@ -64,9 +64,66 @@ const userSchema = new mongoose.Schema({
       default: 'en'
     }
   },
+  // Enhanced profile information
   profile: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {}
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 30,
+      match: /^[a-zA-Z0-9_]+$/,
+      index: true
+    },
+    displayName: {
+      type: String,
+      trim: true,
+      maxlength: 100
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 500
+    },
+    profilePicture: {
+      type: String, // URL to profile image
+      trim: true
+    },
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: 20
+    },
+    country: {
+      type: String,
+      trim: true,
+      maxlength: 100
+    },
+    // Computed/tracked fields
+    totalMined: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    referralsCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    achievementsCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    // Profile completion tracking
+    isProfileComplete: {
+      type: Boolean,
+      default: false
+    },
+    profileCompletedAt: {
+      type: Date
+    }
   },
   // Clerk integration fields
   clerkId: {
@@ -79,6 +136,27 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true
+  },
+
+  // Referral system fields
+  referralCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
+
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  },
+
+  referralStats: {
+    totalReferrals: { type: Number, default: 0 },
+    successfulReferrals: { type: Number, default: 0 },
+    totalEarned: { type: Number, default: 0 },
+    lastReferralDate: { type: Date }
   }
 }, {
   timestamps: true,

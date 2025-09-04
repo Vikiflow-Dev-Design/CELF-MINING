@@ -6,7 +6,7 @@
 import React from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui';
+import { Button, Typography } from '@/components/ui';
 import { Header } from '@/components/navigation/Header';
 import { useNavigation } from '@/components/navigation/NavigationContext';
 import { Colors, Spacing, Layout } from '@/constants/design-tokens';
@@ -28,12 +28,27 @@ export default function EditProfileScreen() {
   const {
     profileData,
     isLoading,
+    isFetching,
     hasChanges,
     updateField,
     pickImage,
     saveProfile,
     discardChanges,
   } = useEditProfile();
+
+  // Show loading state while fetching profile data
+  if (isFetching) {
+    return (
+      <View style={{ flex: 1, backgroundColor: themeColors.background.secondary, justifyContent: 'center', alignItems: 'center' }}>
+        <Typography variant="h3" style={{ marginBottom: Spacing.md }}>
+          Loading Profile...
+        </Typography>
+        <Typography variant="bodyMedium" color="secondary">
+          Please wait while we fetch your profile data.
+        </Typography>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: themeColors.background.secondary }}>

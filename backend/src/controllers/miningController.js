@@ -1,4 +1,5 @@
 const mobileMiningService = require('../services/mobileMiningService');
+const achievementService = require('../services/achievementService');
 const { createResponse } = require('../utils/responseUtils');
 
 class MiningController {
@@ -159,6 +160,18 @@ class MiningController {
       }
 
       const completionResult = await mobileMiningService.completeMiningSession(targetSessionId, clientData);
+
+      // Track achievement progress for mining
+      try {
+        await achievementService.trackMiningProgress(userId, {
+          sessionId: completionResult.sessionId,
+          amount: completionResult.finalEarnings,
+          duration: completionResult.actualDurationMs
+        });
+      } catch (achievementError) {
+        console.error('Error tracking mining achievement progress:', achievementError);
+        // Don't fail the mining completion if achievement tracking fails
+      }
 
       res.json(createResponse(true, 'Mining stopped successfully', {
         session: {

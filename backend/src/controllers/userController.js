@@ -111,22 +111,7 @@ class UserController {
     }
   }
 
-  // User search and lookup methods for token sending
-  async searchUsers(req, res, next) {
-    try {
-      const { query, limit = 10 } = req.query;
 
-      if (!query || query.trim().length < 2) {
-        return res.json(createResponse(true, 'Search results', []));
-      }
-
-      const users = await mongodbService.searchUsers(query, parseInt(limit));
-
-      res.json(createResponse(true, 'Users found', users));
-    } catch (error) {
-      next(error);
-    }
-  }
 
   async validateAddress(req, res, next) {
     try {
@@ -192,12 +177,13 @@ class UserController {
       // Format users for search results
       const searchResults = users.map(user => {
         console.log('📝 Processing user:', user);
+        console.log('📝 User wallet address from mongodbService:', user.walletAddress);
         return {
           id: user.id || user._id,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          walletAddress: user.wallets?.[0]?.currentAddress || user.currentAddress || null
+          walletAddress: user.walletAddress || user.wallets?.[0]?.currentAddress || user.currentAddress || null
         };
       });
 
@@ -213,7 +199,7 @@ class UserController {
 
   async validateAddress(req, res, next) {
     try {
-      const { address } = req.body;
+      const { address } = req.params;
 
       if (!address || !address.startsWith('celf')) {
         return res.status(400).json(createResponse(false, 'Invalid address format'));

@@ -13,6 +13,12 @@ const sendTokensValidation = [
   body('description').optional().trim().isLength({ max: 200 })
 ];
 
+const sendTokensByEmailValidation = [
+  body('toEmail').isEmail().withMessage('Valid recipient email is required'),
+  body('amount').isFloat({ min: 0.0001 }).withMessage('Amount must be greater than 0.0001'),
+  body('description').optional().trim().isLength({ max: 200 })
+];
+
 const exchangeTokensValidation = [
   body('amount').isFloat({ min: 0.0001 }).withMessage('Amount must be greater than 0.0001'),
   body('fromType').isIn(['sendable', 'nonSendable']).withMessage('Invalid token type'),
@@ -35,6 +41,7 @@ router.put('/addresses/:address/default', authenticate, walletController.setDefa
 router.get('/transactions', authenticate, walletController.getTransactions);
 router.get('/transactions/:id', authenticate, [param('id').notEmpty()], validateRequest, walletController.getTransactionById);
 router.post('/send', authenticate, sendTokensValidation, validateRequest, walletController.sendTokens);
+router.post('/send-by-email', authenticate, sendTokensByEmailValidation, validateRequest, walletController.sendTokensByEmail);
 
 // Token exchange routes
 router.post('/exchange', authenticate, exchangeTokensValidation, validateRequest, walletController.exchangeTokens);

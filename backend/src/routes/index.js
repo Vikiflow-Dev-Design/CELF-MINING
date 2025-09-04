@@ -6,6 +6,10 @@ const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const miningRoutes = require('./miningRoutes');
 const walletRoutes = require('./walletRoutes');
+const referralRoutes = require('./referralRoutes');
+const achievementRoutes = require('./achievementRoutes');
+const taskRoutes = require('./taskRoutes');
+const profileRoutes = require('./profileRoutes');
 const contactRoutes = require('./contactRoutes');
 const newsletterRoutes = require('./newsletterRoutes');
 const mentorshipRoutes = require('./mentorshipRoutes');
@@ -29,6 +33,10 @@ router.get('/', (req, res) => {
       users: '/api/users',
       mining: '/api/mining',
       wallet: '/api/wallet',
+      referrals: '/api/referrals',
+      achievements: '/api/achievements',
+      tasks: '/api/tasks',
+      profile: '/api/profile',
       // Website endpoints
       contact: '/api/contact',
       newsletter: '/api/newsletter',
@@ -45,6 +53,10 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/mining', miningRoutes);
 router.use('/wallet', walletRoutes);
+router.use('/referrals', referralRoutes);
+router.use('/achievements', achievementRoutes);
+router.use('/tasks', taskRoutes);
+router.use('/profile', profileRoutes);
 
 // Website routes
 router.use('/contact', contactRoutes);

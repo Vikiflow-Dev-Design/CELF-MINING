@@ -62,18 +62,21 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // Sign up action
-      signUp: async (email: string, password: string, firstName: string, lastName: string) => {
+      signUp: async (email: string, password: string, firstName: string, lastName: string, referralCode?: string) => {
         set({ isLoading: true, error: null });
 
         try {
-          const response = await apiService.register(email, password, firstName, lastName);
-          
+          const response = await apiService.register(email, password, firstName, lastName, referralCode);
+
           if (response.success) {
             // Registration successful, but user needs to login
             set({
               isLoading: false,
               error: null,
             });
+
+            // Return referral info if processed
+            return response.data?.referral || null;
           } else {
             throw new Error(response.message || 'Registration failed');
           }

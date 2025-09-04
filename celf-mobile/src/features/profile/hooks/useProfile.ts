@@ -2,25 +2,61 @@
  * Profile Hook
  */
 
+import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/authStore';
 import { performDirectLogout } from '@/utils/logout';
+import { apiService } from '@/services/apiService';
 
 export const useProfile = () => {
-  const { user, isLoading } = useAuthStore();
+  const { user, isLoading: authLoading } = useAuthStore();
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Use real user data from auth store, with fallbacks for missing data
-  const profileData = {
-    profilePicture: null,
-    username: user?.email?.split('@')[0] || 'user',
-    displayName: `${user?.firstName || 'User'} ${user?.lastName || ''}`.trim(),
-    bio: 'CELF mining enthusiast and crypto investor.',
-    email: user?.email || 'user@example.com',
-    joinDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '2024-12-15',
-    totalMined: 1250.75, // TODO: Connect to wallet store
-    referrals: 12, // TODO: Connect to referral system
-    achievements: 8, // TODO: Connect to achievements system
+  // Fetch profile data from API
+  const fetchProfile = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      console.log('📋 Fetching profile data from API...');
+      const response = await apiService.getProfile();
+
+      if (response.success && response.data) {
+        console.log('✅ Profile data fetched successfully:', response.data);
+        setProfileData(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to fetch profile');
+      }
+    } catch (err) {
+      console.error('❌ Error fetching profile:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch profile');
+
+      // Fallback to auth store data
+      const fallbackData = {
+        profilePicture: null,
+        username: user?.email?.split('@')[0] || 'user',
+        displayName: `${user?.firstName || 'User'} ${user?.lastName || ''}`.trim(),
+        bio: 'CELF mining enthusiast and crypto investor.',
+        email: user?.email || 'user@example.com',
+        joinDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '2024-12-15',
+        totalMined: 0,
+        referrals: 0,
+        achievements: 0,
+      };
+      setProfileData(fallbackData);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Fetch profile on mount
+  useEffect(() => {
+    if (user && !authLoading) {
+      fetchProfile();
+    }
+  }, [user, authLoading]);
 
   const menuItems = [
     { id: 'edit-profile', title: 'Edit Profile', icon: 'person-outline', route: '/edit-profile' },
@@ -46,10 +82,22 @@ export const useProfile = () => {
   };
 
   return {
-    profileData,
+    profileData: profileData || {
+      profilePicture: null,
+      username: 'user',
+      displayName: 'User',
+      bio: 'CELF mining enthusiast and crypto investor.',
+      email: 'user@example.com',
+      joinDate: '2024-12-15',
+      totalMined: 0,
+      referrals: 0,
+      achievements: 0,
+    },
     menuItems,
     handleMenuPress,
     handleLogout,
-    isLoading, // Expose loading state for UI
+    isLoading,
+    error,
+    refreshProfile: fetchProfile,
   };
 };

@@ -2,28 +2,52 @@
  * Transaction History Hook
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
-
-interface Transaction {
-  id: string;
-  type: 'sent' | 'received' | 'mining' | 'referral';
-  amount: number;
-  status: 'completed' | 'pending' | 'failed';
-  timestamp: string;
-}
+import { apiService, Transaction } from '@/services/apiService';
 
 export const useTransactionHistory = () => {
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'sent' | 'received' | 'mining'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'send' | 'receive' | 'mining'>('all');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0
+  });
 
-  const transactions: Transaction[] = [
-    { id: '1', type: 'mining', amount: 25.5, status: 'completed', timestamp: '2024-12-15T10:30:00Z' },
-    { id: '2', type: 'sent', amount: 100, status: 'completed', timestamp: '2024-12-14T15:20:00Z' },
-    { id: '3', type: 'received', amount: 50, status: 'completed', timestamp: '2024-12-13T09:15:00Z' },
-  ];
+  const fetchTransactions = async (page: number = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const filteredTransactions = selectedFilter === 'all' 
-    ? transactions 
+      console.log('🔍 TransactionHistory: Fetching transactions...', { page });
+
+      const response = await apiService.getTransactions(page, pagination.limit);
+
+      if (response.success && response.data) {
+        console.log('✅ TransactionHistory: Transactions fetched:', response.data);
+        setTransactions(response.data.transactions);
+        setPagination(response.data.pagination);
+      } else {
+        throw new Error(response.message || 'Failed to fetch transactions');
+      }
+    } catch (err) {
+      console.error('❌ TransactionHistory: Fetch failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const filteredTransactions = selectedFilter === 'all'
+    ? transactions
     : transactions.filter(t => t.type === selectedFilter);
 
   const handleTransactionPress = (transaction: Transaction) => {
@@ -31,9 +55,15 @@ export const useTransactionHistory = () => {
   };
 
   const refreshTransactions = async () => {
-    // In a real app, this would fetch fresh data from the server
-    // For now, we'll simulate a refresh
-    return new Promise<void>(resolve => setTimeout(resolve, 1500));
+    console.log('🔄 TransactionHistory: Refreshing transactions...');
+    await fetchTransactions(1);
+  };
+
+  const loadMoreTransactions = async () => {
+    if (pagination.page < pagination.pages && !loading) {
+      console.log('📄 TransactionHistory: Loading more transactions...', { nextPage: pagination.page + 1 });
+      await fetchTransactions(pagination.page + 1);
+    }
   };
 
   return {
@@ -42,5 +72,10 @@ export const useTransactionHistory = () => {
     setSelectedFilter,
     handleTransactionPress,
     refreshTransactions,
+    loadMoreTransactions,
+    loading,
+    error,
+    pagination,
+    hasMore: pagination.page < pagination.pages
   };
 };

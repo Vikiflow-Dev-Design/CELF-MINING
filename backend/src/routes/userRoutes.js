@@ -24,11 +24,10 @@ router.put('/profile', authenticate, updateProfileValidation, validateRequest, u
 router.post('/change-password', authenticate, changePasswordValidation, validateRequest, userController.changePassword);
 router.delete('/account', authenticate, userController.deleteAccount);
 
-// Search and validation routes
+// Search and validation routes (main endpoints)
 router.get('/search', authenticate, userController.searchUsers);
-router.post('/validate-address', authenticate, [
-  body('address').notEmpty().withMessage('Address is required')
-], validateRequest, userController.validateAddress);
+router.get('/validate-address/:address', authenticate, userController.validateAddress);
+router.get('/by-address/:address', authenticate, userController.getUserByAddress);
 
 // Test endpoint for debugging (no auth required)
 router.get('/search-test', (req, res) => {
@@ -96,10 +95,7 @@ router.get('/search-no-auth', async (req, res) => {
   }
 });
 
-// User search and lookup routes for token sending
-router.get('/search', authenticate, userController.searchUsers);
-router.get('/validate-address/:address', authenticate, userController.validateAddress);
-router.get('/by-address/:address', authenticate, userController.getUserByAddress);
+
 
 // Validation for multiple user deletion
 const deleteMultipleUsersValidation = [
