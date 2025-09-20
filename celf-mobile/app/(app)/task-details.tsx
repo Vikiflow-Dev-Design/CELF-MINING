@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Typography } from '@/components/ui';
 import { Header } from '@/components/navigation/Header';
@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 // Extracted hook
 import { useTaskDetails } from '@/src/features/tasks/hooks/useTaskDetails';
 import { getCategoryColor, getCategoryName, calculateProgress } from '@/src/features/tasks/utils';
+import { NetworkErrorState } from '@/src/features/tasks/components';
 
 export default function TaskDetailsScreen() {
   const { toggleSidebar } = useNavigation();
@@ -32,6 +33,22 @@ export default function TaskDetailsScreen() {
     handleGoBack,
     fetchTaskDetails,
   } = useTaskDetails(id as string);
+
+  const handleOpenLink = async () => {
+    if (!task?.linkUrl) return;
+    
+    try {
+      const supported = await Linking.canOpenURL(task.linkUrl);
+      if (supported) {
+        await Linking.openURL(task.linkUrl);
+      } else {
+        Alert.alert('Error', 'Unable to open this link');
+      }
+    } catch (error) {
+      console.error('Error opening link:', error);
+      Alert.alert('Error', 'Failed to open the link');
+    }
+  };
 
   if (loading) {
     return (
@@ -79,38 +96,42 @@ export default function TaskDetailsScreen() {
             </TouchableOpacity>
           }
         />
-        <View style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingHorizontal: Layout.screenMargin.mobile,
-        }}>
-          <Ionicons name="alert-circle" size={64} color={themeColors.icon.tertiary} />
-          <Typography variant="h3" weight="semibold" style={{
-            marginTop: Spacing.lg,
-            marginBottom: Spacing.sm,
-            textAlign: 'center',
-          }}>
-            {error ? 'Failed to Load Achievement' : 'Achievement Not Found'}
-          </Typography>
-          <Typography variant="bodyMedium" color="secondary" style={{
-            textAlign: 'center',
-            marginBottom: Spacing.lg,
-          }}>
-            {error || "The task you're looking for doesn't exist."}
-          </Typography>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
           {error ? (
-            <Button
-              title="Try Again"
-              onPress={fetchTaskDetails}
-              style={{ marginBottom: Spacing.md }}
+            <NetworkErrorState
+              error={error}
+              onRetry={fetchTaskDetails}
+              title="Failed to Load Task"
+              description="Unable to fetch task details. Please check your connection and try again."
+              showBackButton={true}
+              onGoBack={handleGoBack}
             />
-          ) : null}
-          <Button
-            title="Go Back"
-            onPress={handleGoBack}
-            variant="secondary"
-          />
+          ) : (
+            <View style={{
+              alignItems: 'center',
+              paddingHorizontal: Layout.screenMargin.mobile,
+            }}>
+              <Ionicons name="alert-circle" size={64} color={themeColors.icon.tertiary} />
+              <Typography variant="h3" weight="semibold" style={{
+                marginTop: Spacing.lg,
+                marginBottom: Spacing.sm,
+                textAlign: 'center',
+              }}>
+                Task Not Found
+              </Typography>
+              <Typography variant="bodyMedium" color="secondary" style={{
+                textAlign: 'center',
+                marginBottom: Spacing.lg,
+              }}>
+                The task you're looking for doesn't exist.
+              </Typography>
+              <Button
+                title="Go Back"
+                onPress={handleGoBack}
+                variant="secondary"
+              />
+            </View>
+          )}
         </View>
       </View>
     );
@@ -340,6 +361,48 @@ export default function TaskDetailsScreen() {
               }
             </Typography>
           </Card>
+
+          {/* Link Task Section */}
+          {task.isLinkTask && task.linkUrl && (
+            <Card variant="default" style={{ marginBottom: Spacing['2xl'] }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md }}>
+                <Ionicons name="link" size={20} color={Colors.primary.blue} style={{ marginRight: Spacing.sm }} />
+                <Typography variant="h3" weight="semibold" style={{ color: Colors.primary.blue }}>
+                  External Link
+                </Typography>
+              </View>
+
+              <View style={{
+                backgroundColor: Colors.primary.blue + '10',
+                padding: Spacing.md,
+                borderRadius: BorderRadius.md,
+                marginBottom: Spacing.md,
+              }}>
+                <Typography variant="bodyMedium" color="secondary" style={{ marginBottom: Spacing.md, textAlign: 'center' }}>
+                  This task requires you to visit an external link. Click the button below to open the link.
+                </Typography>
+
+                <Button
+                  title="Open Link"
+                  onPress={handleOpenLink}
+                  variant="primary"
+                  icon={<Ionicons name="open" size={20} color={Colors.neutral.white} />}
+                  style={{ 
+                    backgroundColor: Colors.primary.blue,
+                    shadowColor: Colors.primary.blue,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
+                />
+              </View>
+
+              <Typography variant="bodySmall" color="secondary" style={{ textAlign: 'center', fontStyle: 'italic' }}>
+                Complete the required action on the external site to finish this task.
+              </Typography>
+            </Card>
+          )}
 
           {/* Tips Section */}
           {task.tips && task.tips.length > 0 && (

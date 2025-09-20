@@ -26,3 +26,18 @@ export interface MiningStats {
   runtime: string;
   tokensPerSecond: number;
 }
+
+export interface ProjectActivity {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  route?: string;
+  url?: string;
+}
+
+export interface ProjectActivityCategory {
+  category: string;
+  items: ProjectActivity[];
+}

@@ -388,7 +388,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
             // Create local transaction record
             const localTransaction: Transaction = {
-              id: transaction.id || Date.now().toString(),
+              id: transaction.id || transaction._id || Date.now().toString(),
               type: 'send',
               amount: -amount, // Negative for outgoing
               toAddress: isEmail ? recipient?.email || toEmailOrAddress : toEmailOrAddress,
@@ -475,16 +475,27 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // Mining integration actions
       initializeMiningBalance: (baseBalance: number) => {
         console.log('Wallet: Initializing mining balance with base:', baseBalance);
-        set((state) => ({
-          miningIntegration: {
-            ...state.miningIntegration,
-            baseBalance,
-            displayBalance: baseBalance,
-            lastSyncTime: Date.now(),
-            syncError: null,
-          },
-          totalBalance: baseBalance, // Update main balance display
-        }));
+
+        set((state) => {
+          // Don't override a higher existing balance with a lower one
+          const currentTotal = state.totalBalance;
+          const useBalance = Math.max(currentTotal, baseBalance);
+
+          if (useBalance !== baseBalance) {
+            console.log(`Wallet: Using existing balance ${useBalance} instead of ${baseBalance}`);
+          }
+
+          return {
+            miningIntegration: {
+              ...state.miningIntegration,
+              baseBalance: useBalance,
+              displayBalance: useBalance,
+              lastSyncTime: Date.now(),
+              syncError: null,
+            },
+            totalBalance: useBalance, // Update main balance display
+          };
+        });
       },
 
       updateMiningEarnings: (earnings: number) => {
@@ -514,7 +525,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
               currentSessionEarnings: earnings,
               displayBalance: newDisplayBalance,
             },
-            totalBalance: newDisplayBalance, // Update main balance display
+            // totalBalance should remain the confirmed balance from database, not include mining earnings
+            // Mining earnings are only shown in the mining screen
           };
         });
       },
@@ -580,7 +592,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
                 lastSyncTime: Date.now(),
                 syncError: null,
               },
-              totalBalance: backendBalance + state.miningIntegration.currentSessionEarnings,
+              totalBalance: backendBalance, // Only show confirmed balance from database
               availableBalance: sendableBalance || 0, // Legacy compatibility
               pendingBalance: pendingBalance || 0, // Legacy compatibility
               isLoadingBalance: false,

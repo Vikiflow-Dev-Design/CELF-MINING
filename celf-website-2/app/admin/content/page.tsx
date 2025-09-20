@@ -41,10 +41,10 @@ function ContentTabs({ activeTab, onTabChange }: ContentTabProps) {
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-default ${
+              className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-all duration-300 ${
                 activeTab === tab.id
-                  ? 'border-[#9EFF00] text-[#9EFF00]'
-                  : 'border-transparent text-secondary hover:text-primary hover:border-accent/50'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-text-secondary hover:text-text-primary hover:border-brand-primary/50'
               }`}
             >
               <Icon className="h-4 w-4 mr-2" />
@@ -68,11 +68,14 @@ function ContactForms({ loading }: ContactFormsProps) {
   const fetchSubmissions = async () => {
     try {
       const response = await adminApi.getContactSubmissions({ limit: 50 });
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.submissions) {
         setSubmissions(response.data.submissions);
+      } else {
+        setSubmissions([]); // Set empty array if no data
       }
     } catch (err) {
       console.error('Failed to fetch contact submissions:', err);
+      setSubmissions([]); // Set empty array on error
     }
   };
 
@@ -128,7 +131,7 @@ function ContactForms({ loading }: ContactFormsProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Contact Form Submissions</h3>
+        <h3 className="text-lg font-semibold text-text-primary">Contact Form Submissions</h3>
         <Button onClick={fetchSubmissions} size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
@@ -143,15 +146,15 @@ function ContactForms({ loading }: ContactFormsProps) {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-2">
-                    <h4 className="font-medium text-primary">{submission.name}</h4>
+                    <h4 className="font-medium text-text-primary">{submission.name}</h4>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(submission.status)}`}>
                       {submission.status}
                     </span>
                   </div>
-                  <p className="text-sm text-secondary mb-1">{submission.email}</p>
-                  <p className="text-sm font-medium text-primary mb-2">{submission.subject}</p>
-                  <p className="text-sm text-secondary line-clamp-2">{submission.message}</p>
-                  <p className="text-xs text-muted mt-2">
+                  <p className="text-sm text-text-secondary mb-1">{submission.email}</p>
+                  <p className="text-sm font-medium text-text-primary mb-2">{submission.subject}</p>
+                  <p className="text-sm text-text-secondary line-clamp-2">{submission.message}</p>
+                  <p className="text-xs text-text-muted mt-2">
                     {new Date(submission.createdAt).toLocaleDateString()}
                   </p>
                 </div>
@@ -250,11 +253,14 @@ function NewsletterManagement() {
     try {
       setLoading(true);
       const response = await adminApi.getNewsletterSubscriptions({ limit: 100 });
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.subscriptions) {
         setSubscriptions(response.data.subscriptions);
+      } else {
+        setSubscriptions([]); // Set empty array if no data
       }
     } catch (err) {
       console.error('Failed to fetch newsletter subscriptions:', err);
+      setSubscriptions([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -343,45 +349,53 @@ export default function AdminContent() {
       <div className="space-y-6">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">Content Management</h1>
-          <p className="text-secondary">Manage website content and user submissions</p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-text-primary to-brand-primary bg-clip-text text-transparent mb-2">Content Management</h1>
+          <p className="text-text-secondary text-lg">Manage website content and user submissions</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="p-6 bg-gradient-to-br from-background-card/80 to-background-card/40 border border-border-accent/30 shadow-xl backdrop-blur-xl">
             <div className="flex items-center">
-              <MessageSquare className="h-8 w-8 text-blue-600" />
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500/20 to-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/30">
+                <MessageSquare className="h-6 w-6 text-blue-400" />
+              </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Contact Forms</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-sm font-medium text-text-secondary">Contact Forms</p>
+                <p className="text-2xl font-bold text-text-primary">0</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-6 bg-gradient-to-br from-background-card/80 to-background-card/40 border border-border-accent/30 shadow-xl backdrop-blur-xl">
             <div className="flex items-center">
-              <Mail className="h-8 w-8 text-green-600" />
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-xl flex items-center justify-center border border-green-500/30">
+                <Mail className="h-6 w-6 text-green-400" />
+              </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Newsletter</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-sm font-medium text-text-secondary">Newsletter</p>
+                <p className="text-2xl font-bold text-text-primary">0</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-6 bg-gradient-to-br from-background-card/80 to-background-card/40 border border-border-accent/30 shadow-xl backdrop-blur-xl">
             <div className="flex items-center">
-              <Users className="h-8 w-8 text-purple-600" />
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/30">
+                <Users className="h-6 w-6 text-purple-400" />
+              </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Mentorship</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-sm font-medium text-text-secondary">Mentorship</p>
+                <p className="text-2xl font-bold text-text-primary">0</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-6 bg-gradient-to-br from-background-card/80 to-background-card/40 border border-border-accent/30 shadow-xl backdrop-blur-xl">
             <div className="flex items-center">
-              <GraduationCap className="h-8 w-8 text-yellow-600" />
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-500/20 to-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/30">
+                <GraduationCap className="h-6 w-6 text-yellow-400" />
+              </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Scholarships</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
+                <p className="text-sm font-medium text-text-secondary">Scholarships</p>
+                <p className="text-2xl font-bold text-text-primary">0</p>
               </div>
             </div>
           </Card>

@@ -78,15 +78,34 @@ export const UserSearchInput: React.FC<UserSearchInputProps> = ({
     try {
       console.log('🔍 Searching for users with query:', query);
 
-
-
       const response = await apiService.searchUsers(query, 5);
       console.log('📡 Search response:', response);
 
       if (response.success && response.data) {
-        console.log('✅ Found users:', response.data.length, response.data);
-        setSearchResults(response.data);
-        setShowResults(true);
+        console.log('✅ Raw response data:', response.data);
+
+        // Handle both response formats for backward compatibility
+        let users: UserSearchResult[] = [];
+
+        if (Array.isArray(response.data)) {
+          // Direct array format from /users/search
+          users = response.data;
+          console.log('✅ Using direct array format');
+        } else if (response.data.users && Array.isArray(response.data.users)) {
+          // Object format from /profile/search
+          users = response.data.users.map((user: any) => ({
+            id: user.userId || user.id,
+            email: user.email || '',
+            firstName: user.firstName || user.displayName?.split(' ')[0] || '',
+            lastName: user.lastName || user.displayName?.split(' ')[1] || '',
+            walletAddress: user.walletAddress || null
+          }));
+          console.log('✅ Converted profile format to user format');
+        }
+
+        console.log('✅ Final processed users:', users.length, users);
+        setSearchResults(users);
+        setShowResults(users.length > 0);
       } else {
         console.log('❌ No users found or API error:', response.message);
         setSearchResults([]);

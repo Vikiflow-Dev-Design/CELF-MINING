@@ -1,6 +1,6 @@
 /**
  * Stats Overview Component
- * Displays achievement statistics overview
+ * Displays task statistics overview
  */
 
 import React from 'react';
@@ -49,7 +49,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({
         </View>
         
         <Typography variant="h2" color="inverse" weight="bold" style={{ marginBottom: Spacing.sm }}>
-          Your Achievements
+          Your Tasks
         </Typography>
         
         <Typography variant="bodyLarge" color="inverse" style={{ 

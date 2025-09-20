@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useWalletStore } from '@/stores/walletStore';
+import { useAuthStore } from '@/stores/authStore';
 import { apiService, UserSearchResult } from '@/services/apiService';
 
 export const useSendTokens = () => {
@@ -18,11 +19,22 @@ export const useSendTokens = () => {
   const [recipientValidationError, setRecipientValidationError] = useState<string | null>(null);
 
   const { balanceBreakdown, sendTokens, getFormattedBalance } = useWalletStore();
+  const { user } = useAuthStore(); // Get current user to prevent self-selection
   const balance = balanceBreakdown.sendable; // Only sendable balance can be sent
 
-  const handleUserSelect = (user: UserSearchResult) => {
-    setSelectedRecipient(user);
-    setRecipientAddress(user.walletAddress || '');
+  const handleUserSelect = (selectedUser: UserSearchResult) => {
+    // Prevent self-selection
+    if (user && selectedUser.id === user.id) {
+      Alert.alert(
+        'Cannot Send to Yourself',
+        'You cannot send tokens to your own account. Please select a different recipient.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    setSelectedRecipient(selectedUser);
+    setRecipientAddress(selectedUser.walletAddress || '');
     setRecipientValidationError(null);
   };
 
@@ -67,6 +79,16 @@ export const useSendTokens = () => {
 
     if (!selectedRecipient) {
       Alert.alert('Error', 'Please select a valid recipient');
+      return;
+    }
+
+    // Prevent self-transfer (additional safety check)
+    if (user && selectedRecipient.id === user.id) {
+      Alert.alert(
+        'Cannot Send to Yourself',
+        'You cannot send tokens to your own account. Please select a different recipient.',
+        [{ text: 'OK', style: 'default' }]
+      );
       return;
     }
 

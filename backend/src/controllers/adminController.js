@@ -74,14 +74,26 @@ class AdminController {
   async getAllUsers(req, res, next) {
     try {
       const { page = 1, limit = 20, search, role, status } = req.query;
-      const users = await mongodbService.getAllUsersAdmin({
+      const result = await mongodbService.getAllUsersAdmin({
         page: parseInt(page),
         limit: parseInt(limit),
         search,
         role,
         status
       });
-      res.json(createResponse(true, 'Users retrieved successfully', users));
+
+      // Restructure response to match frontend expectations
+      const responseData = {
+        users: result.data || [],
+        pagination: result.pagination || {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          totalPages: 0
+        }
+      };
+
+      res.json(createResponse(true, 'Users retrieved successfully', responseData));
     } catch (error) {
       next(error);
     }

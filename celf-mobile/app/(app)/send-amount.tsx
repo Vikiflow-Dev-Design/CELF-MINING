@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useWalletStore } from '@/stores/walletStore';
 import { useAuthStore } from '@/stores/authStore';
 import { SendConfirmationModal } from '@/components/modals/SendConfirmationModal';
+import { TransactionResultModal } from '@/components/modals/TransactionResultModal';
 import { checkAuthStatus, testTokenSendingFlow } from '@/utils/testHelpers';
 
 export default function SendAmountScreen() {
@@ -23,6 +24,26 @@ export default function SendAmountScreen() {
   const [memo, setMemo] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Transaction result modal state
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [transactionResult, setTransactionResult] = useState<{
+    isSuccess: boolean;
+    title: string;
+    message: string;
+    transactionId?: string;
+    amount?: string;
+    recipientName?: string;
+  } | null>(null);
+
+  // Debug state changes
+  React.useEffect(() => {
+    console.log('🎯 SendAmount: State changed - showResultModal:', showResultModal);
+  }, [showResultModal]);
+
+  React.useEffect(() => {
+    console.log('🎯 SendAmount: State changed - transactionResult:', transactionResult);
+  }, [transactionResult]);
 
   // Get real wallet data and auth state
   const { balanceBreakdown, getFormattedBalance, sendTokens } = useWalletStore();
@@ -56,6 +77,25 @@ export default function SendAmountScreen() {
     );
   }
 
+  // Prevent self-transfer
+  if (user && recipient.id === user.id) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.background.secondary, justifyContent: 'center', alignItems: 'center' }}>
+        <Typography variant="h3" weight="bold" style={{ marginBottom: Spacing.md }}>
+          Cannot Send to Yourself
+        </Typography>
+        <Typography variant="bodyMedium" color="secondary" style={{ textAlign: 'center', marginBottom: Spacing.xl }}>
+          You cannot send tokens to your own account. Please select a different recipient.
+        </Typography>
+        <Button
+          title="Go Back"
+          onPress={() => router.back()}
+          variant="primary"
+        />
+      </View>
+    );
+  }
+
   const handleConfirm = () => {
     const sendAmount = parseFloat(amount);
 
@@ -79,12 +119,52 @@ export default function SendAmountScreen() {
     setShowConfirmModal(true);
   };
 
+  const handleResultModalClose = () => {
+    setShowResultModal(false);
+    setTransactionResult(null);
+
+    // If transaction was successful, navigate back to previous screen
+    if (transactionResult?.isSuccess) {
+      router.back();
+    }
+    // If transaction failed, stay on current screen so user can try again
+  };
+
+  const handleViewTransaction = () => {
+    setShowResultModal(false);
+    setTransactionResult(null);
+    // Navigate to wallet/transactions screen
+    router.push('/(app)/wallet');
+  };
+
+  // Test function to manually show success modal
+  const testSuccessModal = () => {
+    console.log('🧪 Testing success modal...');
+    setTransactionResult({
+      isSuccess: true,
+      title: 'Test Success!',
+      message: 'This is a test success message.',
+      transactionId: 'test-123',
+      amount: '5.00 CELF',
+      recipientName: 'Test User',
+    });
+    setShowResultModal(true);
+  };
+
   const handleSendTokens = async () => {
+    console.log('🎯 SendAmount: handleSendTokens called');
     setIsLoading(true);
+
     try {
+      console.log('🎯 SendAmount: Starting transaction process...');
       // Check authentication first
       if (!isSignedIn || !user) {
         throw new Error('You must be logged in to send tokens. Please login and try again.');
+      }
+
+      // Prevent self-transfer (additional safety check)
+      if (recipient.id === user.id) {
+        throw new Error('Cannot send tokens to yourself. Please select a different recipient.');
       }
 
       const sendAmount = parseFloat(amount);
@@ -112,38 +192,87 @@ export default function SendAmountScreen() {
 
       // Use real wallet store to send tokens by email
       console.log('📡 SendAmount: Calling wallet store sendTokensByEmail...');
-      const transaction = await sendTokens(recipient.email, sendAmount, memo);
-      console.log('✅ SendAmount: Transaction completed:', transaction);
+      console.log('📡 SendAmount: Parameters:', {
+        recipientEmail: recipient.email,
+        amount: sendAmount,
+        memo,
+        userEmail: user.email
+      });
 
-      // Close modal and navigate back with success
+      console.log('🎯 SendAmount: About to call sendTokens...');
+      const transaction = await sendTokens(recipient.email, sendAmount, memo);
+      console.log('🎯 SendAmount: sendTokens returned, processing response...');
+      console.log('✅ SendAmount: Transaction completed successfully:', transaction);
+      console.log('✅ SendAmount: Transaction details:', {
+        id: transaction.id,
+        amount: transaction.amount,
+        status: transaction.status,
+        description: transaction.description,
+        type: typeof transaction,
+        isObject: transaction && typeof transaction === 'object'
+      });
+
+      // Close confirmation modal
+      console.log('🎯 SendAmount: Closing confirmation modal...');
       setShowConfirmModal(false);
 
-      Alert.alert(
-        'Transaction Successful!',
-        `${getFormattedBalance(sendAmount)} has been sent to ${recipient.firstName} ${recipient.lastName}!\n\nTransaction ID: ${transaction.id}`,
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Show success result modal
+      console.log('🎯 SendAmount: Setting up success modal...');
+      const resultData = {
+        isSuccess: true,
+        title: 'Transaction Successful!',
+        message: `Your tokens have been sent successfully to ${recipient.firstName} ${recipient.lastName}.`,
+        transactionId: transaction.id,
+        amount: getFormattedBalance(sendAmount),
+        recipientName: `${recipient.firstName} ${recipient.lastName}`,
+      };
+      console.log('🎯 SendAmount: Success modal data:', resultData);
+
+      setTransactionResult(resultData);
+      console.log('🎯 SendAmount: About to show success modal...');
+      setShowResultModal(true);
+      console.log('🎯 SendAmount: Success modal should now be visible');
 
     } catch (error) {
+      console.log('🎯 SendAmount: Entered catch block');
       console.error('❌ SendAmount: Send tokens error:', error);
+      console.error('❌ SendAmount: Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        type: typeof error,
+        error
+      });
+
+      // Close confirmation modal
+      setShowConfirmModal(false);
 
       // More specific error messages
-      let errorMessage = 'Failed to send tokens';
+      let errorMessage = 'Failed to send tokens. Please try again.';
       if (error instanceof Error) {
         if (error.message.includes('Authentication')) {
-          errorMessage = 'Authentication failed. Please login again.';
+          errorMessage = 'Authentication failed. Please login again and try sending the tokens.';
         } else if (error.message.includes('Insufficient')) {
-          errorMessage = 'Insufficient balance. Please exchange some tokens first.';
+          errorMessage = 'Insufficient balance. Please exchange some tokens first to increase your sendable balance.';
         } else if (error.message.includes('network') || error.message.includes('fetch')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message.includes('not found')) {
+          errorMessage = 'Recipient not found. Please verify the email address and try again.';
         } else {
-          errorMessage = error.message;
+          errorMessage = error.message || 'An unexpected error occurred. Please try again.';
         }
       }
 
-      Alert.alert('Transaction Failed', errorMessage);
+      // Show error result modal
+      setTransactionResult({
+        isSuccess: false,
+        title: 'Transaction Failed',
+        message: errorMessage,
+      });
+      setShowResultModal(true);
     } finally {
+      console.log('🎯 SendAmount: Entered finally block, setting loading to false');
       setIsLoading(false);
+      console.log('🎯 SendAmount: Loading state set to false');
     }
   };
 
@@ -283,10 +412,12 @@ export default function SendAmountScreen() {
 
           {/* Memo */}
           <View style={{ marginBottom: Spacing.xl }}>
-            <Typography variant="h3" weight="bold" style={{ marginBottom: Spacing.xs }}>
-              Add a Note
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginBottom: Spacing.xs }}>
+              <Typography variant="h3" weight="bold">
+                Add a Note
+              </Typography>
               <Typography variant="bodyMedium" color="secondary"> (Optional)</Typography>
-            </Typography>
+            </View>
 
             <TextInput
               value={memo}
@@ -307,6 +438,18 @@ export default function SendAmountScreen() {
               placeholderTextColor={Colors.text.tertiary}
             />
           </View>
+
+          {/* Test Button (for debugging) */}
+          <Button
+            title="🧪 Test Success Modal"
+            onPress={testSuccessModal}
+            variant="secondary"
+            style={{
+              borderRadius: 12,
+              paddingVertical: Spacing.md,
+              marginBottom: Spacing.md,
+            }}
+          />
 
           {/* Confirm Button */}
           <Button
@@ -335,6 +478,19 @@ export default function SendAmountScreen() {
         onConfirm={handleSendTokens}
         onCancel={() => setShowConfirmModal(false)}
         isLoading={isLoading}
+      />
+
+      {/* Transaction Result Modal */}
+      <TransactionResultModal
+        isVisible={showResultModal && !!transactionResult}
+        isSuccess={transactionResult?.isSuccess || false}
+        title={transactionResult?.title || ''}
+        message={transactionResult?.message || ''}
+        transactionId={transactionResult?.transactionId}
+        amount={transactionResult?.amount}
+        recipientName={transactionResult?.recipientName}
+        onClose={handleResultModalClose}
+        onViewTransaction={transactionResult?.isSuccess ? handleViewTransaction : undefined}
       />
     </View>
   );

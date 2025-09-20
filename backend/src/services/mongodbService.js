@@ -1270,10 +1270,9 @@ class MongoDBService {
 
       const offset = (page - 1) * limit;
 
-      // Get users with wallet information
+      // Get users without wallet population for now (fix schema issue)
       const User = this.models.User;
       const users = await User.find(filters)
-        .populate('wallets', 'sendableBalance nonSendableBalance totalBalance')
         .select('id email firstName lastName role isActive lastLogin createdAt updatedAt')
         .sort({ createdAt: -1 })
         .skip(offset)
@@ -1302,7 +1301,6 @@ class MongoDBService {
     try {
       const User = this.models.User;
       const user = await User.findById(userId)
-        .populate('wallets')
         .lean();
 
       if (!user) {
@@ -1315,8 +1313,15 @@ class MongoDBService {
         $or: [{ fromUserId: userId }, { toUserId: userId }]
       });
 
+      // Get wallet info separately to avoid schema issues
+      const Wallet = this.models.Wallet;
+      const wallets = await Wallet.find({ userId })
+        .select('sendableBalance nonSendableBalance totalBalance currentAddress')
+        .lean();
+
       return {
         ...user,
+        wallets: wallets || [],
         mining_sessions: [{ count: miningSessionsCount }],
         transactions: [{ count: transactionsCount }]
       };

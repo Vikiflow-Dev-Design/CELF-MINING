@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, TouchableOpacity, TextInput, Modal, FlatList, ActivityIndicator } from 'react-native';
+import { View, ScrollView, TouchableOpacity, TextInput, Modal, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Typography } from '@/components/ui';
 import { Header } from '@/components/navigation/Header';
@@ -12,6 +12,7 @@ import { useNavigation } from '@/components/navigation/NavigationContext';
 import { Colors, Spacing } from '@/constants/design-tokens';
 import { router } from 'expo-router';
 import { UserSearchResult, apiService } from '@/services/apiService';
+import { useAuthStore } from '@/stores/authStore';
 
 // Mock recent users data - replace with actual API call
 const mockRecentUsers: UserSearchResult[] = [
@@ -40,6 +41,7 @@ const mockRecentUsers: UserSearchResult[] = [
 
 export default function SendTokensScreen() {
   const { toggleSidebar } = useNavigation();
+  const { user } = useAuthStore(); // Get current user to prevent self-selection
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [recentUsers] = useState(mockRecentUsers);
@@ -64,8 +66,38 @@ export default function SendTokensScreen() {
       console.log('📡 Frontend: API response received:', response);
 
       if (response.success && response.data) {
-        console.log('✅ Frontend: Setting search results:', response.data);
-        setSearchResults(response.data);
+        console.log('✅ Frontend: Raw response data:', response.data);
+
+        // Handle both response formats for backward compatibility
+        let users: UserSearchResult[] = [];
+
+        if (Array.isArray(response.data)) {
+          // Direct array format from /users/search
+          users = response.data;
+          console.log('✅ Frontend: Using direct array format');
+        } else if (response.data.users && Array.isArray(response.data.users)) {
+          // Object format from /profile/search
+          users = response.data.users.map((user: any) => ({
+            id: user.userId || user.id,
+            email: user.email || '',
+            firstName: user.firstName || user.displayName?.split(' ')[0] || '',
+            lastName: user.lastName || user.displayName?.split(' ')[1] || '',
+            walletAddress: user.walletAddress || null
+          }));
+          console.log('✅ Frontend: Converted profile format to user format');
+        }
+
+        // Filter out current user from search results
+        const filteredUsers = users.filter(searchUser => {
+          if (user && searchUser.id === user.id) {
+            console.log('🚫 Frontend: Filtering out current user from search results');
+            return false;
+          }
+          return true;
+        });
+
+        console.log('✅ Frontend: Final processed users (after filtering):', filteredUsers);
+        setSearchResults(filteredUsers);
       } else {
         console.log('❌ Frontend: No data in response or not successful:', response);
         setSearchResults([]);
@@ -98,7 +130,17 @@ export default function SendTokensScreen() {
     setSearchResults([]);
   };
 
-  const handleUserSelect = (user: UserSearchResult) => {
+  const handleUserSelect = (selectedUser: UserSearchResult) => {
+    // Prevent self-selection
+    if (user && selectedUser.id === user.id) {
+      Alert.alert(
+        'Cannot Send to Yourself',
+        'You cannot send tokens to your own account. Please select a different recipient.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
     setShowSearchModal(false);
     setSearchQuery('');
     setSearchResults([]);
@@ -106,11 +148,11 @@ export default function SendTokensScreen() {
     router.push({
       pathname: '/send-amount',
       params: {
-        userId: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        walletAddress: user.walletAddress,
+        userId: selectedUser.id,
+        firstName: selectedUser.firstName,
+        lastName: selectedUser.lastName,
+        email: selectedUser.email,
+        walletAddress: selectedUser.walletAddress,
       }
     });
   };

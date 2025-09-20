@@ -42,9 +42,10 @@ export const useAppInitialization = () => {
           console.error('❌ App Init: Failed to load wallet balance:', error);
         }
 
-        // Load mining status
-        console.log('⛏️ Loading mining status...');
-        await refreshMiningStatus();
+        // Initialize mining store with backend sync (only on app launch)
+        console.log('⛏️ Initializing mining store with backend sync...');
+        const { useMiningStore } = await import('@/stores/miningStore');
+        await useMiningStore.getState().initializeWithSession();
 
         console.log('✅ App initialization complete');
       } else {

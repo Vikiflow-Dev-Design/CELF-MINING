@@ -26,7 +26,7 @@ const taskSchema = new mongoose.Schema({
   // Category for grouping tasks
   category: {
     type: String,
-    enum: ['mining', 'social', 'wallet', 'milestone'],
+    enum: ['mining', 'social', 'wallet', 'referral'],
     required: true,
     index: true
   },
@@ -122,6 +122,26 @@ const taskSchema = new mongoose.Schema({
   sortOrder: {
     type: Number,
     default: 0
+  },
+  
+  // Link task functionality
+  isLinkTask: {
+    type: Boolean,
+    default: false
+  },
+  linkUrl: {
+    type: String,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        // Only validate URL if isLinkTask is true
+        if (this.isLinkTask && v) {
+          return /^https?:\/\/.+/.test(v);
+        }
+        return true;
+      },
+      message: 'Link URL must be a valid HTTP/HTTPS URL'
+    }
   },
   
   // Metadata

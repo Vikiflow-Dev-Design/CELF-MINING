@@ -14,7 +14,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { router } from 'expo-router';
 
 // Extracted components
-import { StatsOverview, CategoryTabs, TaskCard } from '@/src/features/tasks/components';
+import { StatsOverview, CategoryTabs, TaskCard, NetworkErrorState } from '@/src/features/tasks/components';
 
 // Extracted hook
 import { useTasks } from '@/src/features/tasks/hooks/useTasks';
@@ -108,39 +108,12 @@ export default function TasksScreen() {
 
     if (error) {
       return (
-        <View style={{
-          alignItems: 'center',
-          paddingTop: Spacing['3xl'],
-          paddingHorizontal: Layout.screenMargin.mobile,
-        }}>
-          <Ionicons name="alert-circle-outline" size={64} color={themeColors.icon.tertiary} />
-          <Typography variant="h3" weight="semibold" style={{
-            marginTop: Spacing.lg,
-            marginBottom: Spacing.sm,
-            textAlign: 'center',
-          }}>
-            Failed to load achievements
-          </Typography>
-          <Typography variant="bodyMedium" color="secondary" style={{
-            textAlign: 'center',
-            marginBottom: Spacing.lg,
-          }}>
-            {error}
-          </Typography>
-          <TouchableOpacity
-            onPress={refreshAchievements}
-            style={{
-              backgroundColor: themeColors.primary.blue,
-              paddingHorizontal: Spacing.lg,
-              paddingVertical: Spacing.sm,
-              borderRadius: 8,
-            }}
-          >
-            <Typography variant="bodyMedium" color="inverse" weight="semibold">
-              Try Again
-            </Typography>
-          </TouchableOpacity>
-        </View>
+        <NetworkErrorState
+          error={error}
+          onRetry={refreshTasks}
+          title="Failed to Load Tasks"
+          description="Unable to fetch your tasks. Please check your connection and try again."
+        />
       );
     }
 

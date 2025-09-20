@@ -27,7 +27,9 @@ class TaskController {
         icon: task.icon,
         tips: task.tips,
         requirements: task.requirements,
-        rewardClaimed: false
+        rewardClaimed: false,
+        isLinkTask: task.isLinkTask || false,
+        linkUrl: task.linkUrl || null
       }));
 
       // Filter by category if specified
@@ -99,7 +101,9 @@ class TaskController {
         icon: task.icon,
         tips: task.tips,
         requirements: task.requirements,
-        rewardClaimed: false
+        rewardClaimed: false,
+        isLinkTask: task.isLinkTask || false,
+        linkUrl: task.linkUrl || null
       };
 
       res.json({
@@ -214,13 +218,43 @@ class TaskController {
 
       res.json({
         success: true,
-        data: tasks
+        data: tasks || []
       });
     } catch (error) {
       console.error('Error getting all tasks:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to get tasks',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Get task by ID (admin only)
+   * GET /api/admin/tasks/:id
+   */
+  async getTaskById(req, res) {
+    try {
+      const { id } = req.params;
+      const task = await Task.findById(id);
+
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          message: 'Task not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: task
+      });
+    } catch (error) {
+      console.error('Error getting task by ID:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get task',
         error: error.message
       });
     }

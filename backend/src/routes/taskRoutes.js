@@ -24,8 +24,8 @@ const createTaskValidation = [
     .isLength({ min: 1, max: 500 })
     .withMessage('Description must be between 1 and 500 characters'),
   body('category')
-    .isIn(['mining', 'social', 'wallet', 'milestone'])
-    .withMessage('Category must be one of: mining, social, wallet, milestone'),
+    .isIn(['mining', 'social', 'wallet', 'referral'])
+    .withMessage('Category must be one of: mining, social, wallet, referral'),
   body('maxProgress')
     .isInt({ min: 1 })
     .withMessage('Max progress must be a positive integer'),
@@ -46,7 +46,15 @@ const createTaskValidation = [
   body('conditions')
     .optional()
     .isObject()
-    .withMessage('Conditions must be an object')
+    .withMessage('Conditions must be an object'),
+  body('isLinkTask')
+    .optional()
+    .isBoolean()
+    .withMessage('isLinkTask must be a boolean'),
+  body('linkUrl')
+    .optional()
+    .isURL()
+    .withMessage('Link URL must be a valid URL')
 ];
 
 const updateTaskValidation = [
@@ -60,8 +68,8 @@ const updateTaskValidation = [
     .withMessage('Description must be between 1 and 500 characters'),
   body('category')
     .optional()
-    .isIn(['mining', 'social', 'wallet', 'milestone'])
-    .withMessage('Category must be one of: mining, social, wallet, milestone'),
+    .isIn(['mining', 'social', 'wallet', 'referral'])
+    .withMessage('Category must be one of: mining, social, wallet, referral'),
   body('maxProgress')
     .optional()
     .isInt({ min: 1 })
@@ -82,6 +90,14 @@ const updateTaskValidation = [
     .optional()
     .isObject()
     .withMessage('Conditions must be an object'),
+  body('isLinkTask')
+    .optional()
+    .isBoolean()
+    .withMessage('isLinkTask must be a boolean'),
+  body('linkUrl')
+    .optional()
+    .isURL()
+    .withMessage('Link URL must be a valid URL'),
   body('isActive')
     .optional()
     .isBoolean()
@@ -115,8 +131,8 @@ const updateProgressValidation = [
 const queryValidation = [
   query('category')
     .optional()
-    .isIn(['all', 'mining', 'social', 'wallet', 'milestone'])
-    .withMessage('Category must be one of: all, mining, social, wallet, milestone'),
+    .isIn(['all', 'mining', 'social', 'wallet', 'referral'])
+    .withMessage('Category must be one of: all, mining, social, wallet, referral'),
   query('completed')
     .optional()
     .isBoolean()
@@ -155,24 +171,24 @@ router.post('/initialize',
   taskController.initializeUserTasks
 );
 
-// Admin routes (require admin authorization)
-router.get('/admin/all', 
-  authenticate, 
-  authorize(['admin']), 
+// Admin routes (no authentication required for now)
+router.get('/admin/all',
   taskController.getAllTasks
 );
 
-router.post('/admin/create', 
-  authenticate, 
-  authorize(['admin']), 
-  createTaskValidation, 
-  validateRequest, 
+router.get('/admin/:id',
+  [param('id').isMongoId().withMessage('Valid task ID is required')],
+  validateRequest,
+  taskController.getTaskById
+);
+
+router.post('/admin/create',
+  createTaskValidation,
+  validateRequest,
   taskController.createTask
 );
 
 router.put('/admin/:id', 
-  authenticate, 
-  authorize(['admin']), 
   [param('id').isMongoId().withMessage('Valid task ID is required')],
   updateTaskValidation, 
   validateRequest, 
@@ -180,8 +196,6 @@ router.put('/admin/:id',
 );
 
 router.delete('/admin/:id', 
-  authenticate, 
-  authorize(['admin']), 
   [param('id').isMongoId().withMessage('Valid task ID is required')],
   validateRequest, 
   taskController.deleteTask

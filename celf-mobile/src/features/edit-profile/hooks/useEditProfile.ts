@@ -2,7 +2,7 @@
  * Edit Profile Hook
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,7 +27,7 @@ export const useEditProfile = () => {
   const [hasChanges, setHasChanges] = useState(false);
 
   // Fetch current profile data
-  const fetchProfileData = async () => {
+  const fetchProfileData = useCallback(async () => {
     try {
       setIsFetching(true);
       console.log('📋 Fetching profile data for editing...');
@@ -58,7 +58,7 @@ export const useEditProfile = () => {
     } finally {
       setIsFetching(false);
     }
-  };
+  }, []);
 
   // Load profile data on mount
   useEffect(() => {
@@ -73,12 +73,11 @@ export const useEditProfile = () => {
     }
   }, [profileData, originalData]);
 
-  const updateField = (field: keyof ProfileData, value: string) => {
+  const updateField = useCallback((field: keyof ProfileData, value: string) => {
     setProfileData(prev => ({ ...prev, [field]: value }));
-    setHasChanges(true);
-  };
+  }, []);
 
-  const pickImage = async () => {
+  const pickImage = useCallback(async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (permissionResult.granted === false) {
@@ -112,9 +111,9 @@ export const useEditProfile = () => {
         Alert.alert('Error', 'Failed to upload profile picture');
       }
     }
-  };
+  }, [updateField]);
 
-  const saveProfile = async () => {
+  const saveProfile = useCallback(async () => {
     if (!hasChanges) return;
 
     setIsLoading(true);
@@ -160,9 +159,9 @@ export const useEditProfile = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [hasChanges, profileData, originalData]);
 
-  const discardChanges = () => {
+  const discardChanges = useCallback(() => {
     if (hasChanges) {
       Alert.alert(
         'Discard Changes',
@@ -175,7 +174,7 @@ export const useEditProfile = () => {
     } else {
       router.back();
     }
-  };
+  }, [hasChanges]);
 
   return {
     profileData,

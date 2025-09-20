@@ -4,6 +4,8 @@
  */
 
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { secureStorage } from '@/utils/storage';
 import { miningService } from '@/services/miningService';
 import { apiService } from '@/services/apiService';
 
@@ -26,6 +28,7 @@ interface MiningState {
   countdown: string;
   tokensPerSecond: number;
   isLoading: boolean;
+  isInitialized: boolean;
 
   // Mining history
   sessions: MiningSession[];
@@ -52,9 +55,17 @@ interface MiningState {
   updateMiningRate: (rate: number) => void;
   resetBalance: (balance?: number) => void;
   calculateStatistics: () => void;
+  initializeWithSession: () => Promise<void>;
+  syncWithBackend: () => Promise<void>;
+  isBackendSyncNeeded: () => boolean;
+  useCachedState: () => void;
+  resetInitialization: () => void;
+  initializeWithSession: () => Promise<void>;
 }
 
-export const useMiningStore = create<MiningState>((set, get) => ({
+export const useMiningStore = create<MiningState>()(
+  persist(
+    (set, get) => ({
   // Initial state (in-memory only)
   isMining: false,
   currentBalance: 0, // Will be synced from wallet store
@@ -63,7 +74,7 @@ export const useMiningStore = create<MiningState>((set, get) => ({
   runtime: '0h 0m 0s',
   countdown: '24h 0m 0s',
   tokensPerSecond: 0.125 / 3600,
-  isLoading: false,
+  isLoading: true, // Start with loading true to prevent UI jumping
   isInitialized: false,
 
   // Session data (will be saved to database later)
@@ -153,6 +164,13 @@ export const useMiningStore = create<MiningState>((set, get) => ({
         if (state.isInitialized) {
           set({ isMining });
         }
+      },
+
+      resetInitialization: () => {
+        set({
+          isInitialized: false,
+          isLoading: true
+        });
       },
 
       addSession: (session: MiningSession) => {
@@ -269,4 +287,119 @@ export const useMiningStore = create<MiningState>((set, get) => ({
           monthlyEarnings,
         });
       },
-    }));
+
+      // Check if backend sync is needed (only on app launch or after long time)
+      isBackendSyncNeeded: () => {
+        const state = get();
+        // Always sync if not initialized
+        if (!state.isInitialized) {
+          return true;
+        }
+
+        // Sync if it's been more than 5 minutes since last sync
+        const lastSyncTime = state.sessions.length > 0
+          ? Math.max(...state.sessions.map(s => s.endTime || s.startTime))
+          : 0;
+        const timeSinceLastSync = Date.now() - lastSyncTime;
+        return timeSinceLastSync > 5 * 60 * 1000; // 5 minutes
+      },
+
+      // Use cached state immediately (for navigation)
+      useCachedState: () => {
+        console.log('Mining Store: Using cached state for navigation');
+        set({
+          isLoading: false,
+          isInitialized: true
+        });
+      },
+
+      // Sync with backend only when needed (app launch)
+      syncWithBackend: async () => {
+        try {
+          console.log('Mining Store: Syncing with backend...');
+          set({ isLoading: true });
+
+          // Fetch current admin mining rate
+          await miningService.fetchCurrentMiningRate();
+
+          // Check for existing session
+          await miningService.checkExistingSession();
+          const miningState = miningService.getState();
+
+          console.log('Mining Store: Backend state received:', miningState);
+
+          // Update store with backend data
+          const hasActiveSession = miningState.isMining && miningState.sessionId;
+
+          set({
+            isMining: hasActiveSession,
+            totalEarned: miningState.totalEarned,
+            runtime: miningState.runtime,
+            countdown: miningState.countdown,
+            miningRate: miningState.miningRate,
+            tokensPerSecond: miningState.tokensPerSecond,
+            isLoading: false,
+            isInitialized: true,
+          });
+
+          console.log('Mining Store: Backend sync complete');
+        } catch (error) {
+          console.error('Mining Store: Backend sync failed:', error);
+          // Set safe defaults and mark as initialized
+          set({
+            isMining: false,
+            totalEarned: 0,
+            runtime: '0h 0m 0s',
+            countdown: '24h 0m 0s',
+            miningRate: 0.125,
+            tokensPerSecond: 0.125 / 3600,
+            isLoading: false,
+            isInitialized: true,
+          });
+        }
+      },
+
+      // Initialize - use cached data first, sync with backend if needed
+      initializeWithSession: async () => {
+        try {
+          console.log('Mining Store: Initializing...');
+
+          // If we have cached data and don't need backend sync, use cached data immediately
+          if (!get().isBackendSyncNeeded()) {
+            console.log('Mining Store: Using cached data, no backend sync needed');
+            get().useCachedState();
+            return;
+          }
+
+          // Otherwise, sync with backend
+          await get().syncWithBackend();
+        } catch (error) {
+          console.error('Mining Store: Failed to initialize:', error);
+          set({
+            isLoading: false,
+            isInitialized: true,
+          });
+        }
+      },
+    }),
+    {
+      name: 'celf-mining-storage',
+      storage: createJSONStorage(() => secureStorage),
+      // Only persist essential mining state, not loading states
+      partialize: (state) => ({
+        isMining: state.isMining,
+        totalEarned: state.totalEarned,
+        runtime: state.runtime,
+        countdown: state.countdown,
+        miningRate: state.miningRate,
+        tokensPerSecond: state.tokensPerSecond,
+        sessions: state.sessions,
+        totalLifetimeEarnings: state.totalLifetimeEarnings,
+        totalMiningTime: state.totalMiningTime,
+        dailyEarnings: state.dailyEarnings,
+        weeklyEarnings: state.weeklyEarnings,
+        monthlyEarnings: state.monthlyEarnings,
+      }),
+    }
+  )
+);

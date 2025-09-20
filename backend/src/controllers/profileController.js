@@ -50,7 +50,7 @@ class ProfileController {
         });
       }
 
-      const userId = req.user.id;
+      const userId = req.user.userId; // Changed from req.user.id to req.user.userId
       const updateData = req.body;
 
       const updatedProfile = await profileService.updateUserProfile(userId, updateData);
@@ -80,7 +80,7 @@ class ProfileController {
    */
   async uploadProfilePicture(req, res) {
     try {
-      const userId = req.user.id;
+      const userId = req.user.userId; // Changed from req.user.id to req.user.userId
       const { imageUrl } = req.body;
 
       if (!imageUrl) {
@@ -113,7 +113,7 @@ class ProfileController {
    */
   async getProfileCompletion(req, res) {
     try {
-      const userId = req.user.id;
+      const userId = req.user.userId; // Changed from req.user.id to req.user.userId
       const completion = await profileService.getProfileCompletion(userId);
 
       res.json({

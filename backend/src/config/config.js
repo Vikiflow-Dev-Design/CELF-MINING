@@ -48,8 +48,8 @@ const config = {
     prefix: '/api',
     version: 'v1',
     rateLimit: {
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 100 // requests per window
+      windowMs: 1 * 60 * 1000, // 1 minute
+      max: 1000 // requests per window (generous for development)
     }
   }
 };

@@ -165,6 +165,8 @@ class ApiService {
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },
+      // Add timeout to prevent hanging requests
+      signal: AbortSignal.timeout(30000), // 30 second timeout
       ...options,
     };
 
@@ -183,7 +185,13 @@ class ApiService {
             Authorization: `Bearer ${newToken}`,
           };
           const retryResponse = await fetch(url, config);
-          return await retryResponse.json();
+          const retryData = await retryResponse.json();
+
+          if (!retryResponse.ok) {
+            throw new Error(retryData.message || `HTTP error! status: ${retryResponse.status}`);
+          }
+
+          return retryData;
         } else {
           // Refresh failed, clear tokens
           await this.clearTokens();
@@ -199,9 +207,15 @@ class ApiService {
     } catch (error) {
       console.error('API request failed:', error);
 
-      // Handle network errors gracefully
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Network error: Unable to connect to server. Please check your connection and ensure the backend is running.');
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout: The server is taking too long to respond. Please try again.');
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          throw new Error('Network error: Unable to connect to server. Please check your connection and ensure the backend is running.');
+        } else if (error.message.includes('JSON')) {
+          throw new Error('Server response error: Invalid response format. Please try again.');
+        }
       }
 
       throw error;
@@ -441,12 +455,30 @@ class ApiService {
 
     try {
       console.log('📡 ApiService: Making request to /wallet/send-by-email...');
+      console.log('📡 ApiService: Request payload:', { toEmail, amount, description });
+
       const response = await this.request('/wallet/send-by-email', {
         method: 'POST',
         body: JSON.stringify({ toEmail, amount, description }),
       });
 
-      console.log('✅ ApiService: Send tokens by email response:', response);
+      console.log('✅ ApiService: Send tokens by email response received');
+      console.log('✅ ApiService: Response details:', {
+        success: response.success,
+        message: response.message,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+        timestamp: response.timestamp
+      });
+
+      if (response.data) {
+        console.log('✅ ApiService: Transaction data:', {
+          transactionId: response.data.transaction?.id,
+          recipientName: response.data.recipient?.name,
+          recipientEmail: response.data.recipient?.email
+        });
+      }
+
       return response;
     } catch (error) {
       console.error('❌ ApiService: Send tokens by email failed:', error);
@@ -619,72 +651,7 @@ class ApiService {
     });
   }
 
-  // Achievements endpoints
-  async getAchievements(category?: string, completed?: boolean): Promise<ApiResponse<{
-    achievements: any[];
-    stats: {
-      totalAchievements: number;
-      completedAchievements: number;
-      completionPercentage: number;
-      unclaimedRewards: number;
-      totalUnclaimedRewardValue: number;
-    };
-    categories: Array<{
-      key: string;
-      label: string;
-      icon: string;
-      color: string;
-    }>;
-  }>> {
-    let endpoint = '/achievements';
-    const params = new URLSearchParams();
 
-    if (category && category !== 'all') {
-      params.append('category', category);
-    }
-
-    if (completed !== undefined) {
-      params.append('completed', completed.toString());
-    }
-
-    if (params.toString()) {
-      endpoint += `?${params.toString()}`;
-    }
-
-    return this.request(endpoint);
-  }
-
-  async getAchievementDetails(achievementId: string): Promise<ApiResponse<any>> {
-    return this.request(`/achievements/${achievementId}`);
-  }
-
-  async claimAchievementReward(achievementId: string): Promise<ApiResponse<{
-    success: boolean;
-    reward: number;
-    message: string;
-  }>> {
-    return this.request(`/achievements/${achievementId}/claim`, {
-      method: 'POST',
-    });
-  }
-
-  async getAchievementStats(): Promise<ApiResponse<{
-    totalAchievements: number;
-    completedAchievements: number;
-    completionPercentage: number;
-    unclaimedRewards: number;
-    totalUnclaimedRewardValue: number;
-  }>> {
-    return this.request('/achievements/stats');
-  }
-
-  async initializeAchievements(): Promise<ApiResponse<{
-    initializedCount: number;
-  }>> {
-    return this.request('/achievements/initialize', {
-      method: 'POST',
-    });
-  }
 
   // Tasks endpoints
   async getTasks(category?: string, completed?: boolean): Promise<ApiResponse<{
@@ -765,7 +732,6 @@ class ApiService {
     joinDate: string;
     totalMined: number;
     referrals: number;
-    achievements: number;
     isProfileComplete: boolean;
     userId: string;
     firstName: string;
@@ -812,7 +778,7 @@ class ApiService {
     return this.request('/profile/completion');
   }
 
-  async searchUsers(query: string, limit?: number): Promise<ApiResponse<{
+  async searchUserProfiles(query: string, limit?: number): Promise<ApiResponse<{
     users: Array<{
       userId: string;
       username: string;
@@ -837,7 +803,6 @@ class ApiService {
     joinDate: string;
     totalMined: number;
     referrals: number;
-    achievements: number;
   }>> {
     return this.request(`/profile/user/${userId}`);
   }

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useMiningStore } from '@/stores/miningStore';
 import { useWalletStore } from '@/stores/walletStore';
 import { miningService } from '@/services/miningService';
@@ -24,6 +25,8 @@ export const useMining = () => {
     runtime,
     countdown,
     miningRate,
+    isLoading,
+    isInitialized,
     startMining,
     stopMining,
     updateBalance,
@@ -31,10 +34,18 @@ export const useMining = () => {
     updateRuntime,
     updateCountdown,
     updateMiningState,
+    resetInitialization,
   } = useMiningStore();
 
-  // Wallet state for unified balance
-  const { totalBalance } = useWalletStore();
+  // Wallet state - use mining display balance for mining screen (includes mining earnings)
+  const { totalBalance: confirmedBalance, miningIntegration } = useWalletStore();
+
+  // For mining screen, show balance including mining earnings
+  // For wallet screen, use confirmedBalance (without mining earnings)
+  const totalBalance = miningIntegration.displayBalance || confirmedBalance;
+
+  // Modal state
+  const [showMoreModalVisible, setShowMoreModalVisible] = useState(false);
 
   // Convert countdown string to seconds for MiningButton component
   const timeRemaining = React.useMemo(() => {
@@ -66,7 +77,7 @@ export const useMining = () => {
   const timerScale = useSharedValue(0.8);
   const statusIndicatorOpacity = useSharedValue(1);
 
-  // Initialize miningService callbacks and check for existing session
+  // Initialize miningService callbacks once on mount
   useEffect(() => {
     miningService.setCallbacks({
       onEarningsUpdate: updateEarnings,
@@ -75,28 +86,47 @@ export const useMining = () => {
       onMiningStateChange: updateMiningState,
     });
 
-    // Check for existing mining session on app startup
-    const initializeMining = async () => {
-      try {
-        console.log('useMining: Initializing mining on component mount...');
-
-        // Initialize wallet and mining together
-        // This will restore any active session from backend and sync wallet balance
-        await useMiningStore.getState().initializeWithSession();
-
-        console.log('useMining: Mining initialization complete');
-      } catch (error) {
-        console.error('useMining: Failed to initialize mining:', error);
-      }
-    };
-
-    initializeMining();
-
     // Cleanup on unmount
     return () => {
-      miningService.cleanup();
+      miningService.clearCallbacks();
     };
   }, [updateEarnings, updateRuntime, updateCountdown, updateMiningState]);
+
+  // Initialize mining session when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset initialization state to show loading UI and prevent bouncing
+      resetInitialization();
+
+      // Check for existing mining session when screen focuses
+      const initializeMining = async () => {
+        try {
+          console.log('useMining: Initializing mining on screen focus...');
+
+          // Initialize with existing session (this will restore timers if mining is active)
+          await useMiningStore.getState().initializeWithSession();
+
+          console.log('useMining: Mining initialization completed');
+        } catch (error) {
+          console.error('useMining: Failed to initialize mining:', error);
+          // Still mark as initialized to prevent infinite loading
+          useMiningStore.getState().resetInitialization();
+        }
+      };
+
+      initializeMining();
+    }, [resetInitialization])
+  );
+
+  // Use cached state on navigation (no loading, no API calls)
+  useEffect(() => {
+    // If not initialized, use cached state immediately for navigation
+    if (!isInitialized) {
+      console.log('useMining: Using cached state for navigation');
+      const miningStore = useMiningStore.getState();
+      miningStore.useCachedState();
+    }
+  }, [isInitialized]);
 
   // Handle mining state changes and animations
   useEffect(() => {
@@ -155,7 +185,16 @@ export const useMining = () => {
   };
 
   const handleQuickActionPress = (route: string) => {
-    router.push(route as any);
+    if (route === 'show-more-modal') {
+      setShowMoreModalVisible(true);
+    } else {
+      router.push(route as any);
+    }
+  };
+
+  // Show More modal handlers
+  const handleShowMoreClose = () => {
+    setShowMoreModalVisible(false);
   };
 
   // Refresh mining data
@@ -183,6 +222,11 @@ export const useMining = () => {
     miningRate,
     timeRemaining,
     tokensPerSecond,
+    isLoading,
+    isInitialized,
+
+    // Modal state
+    showMoreModalVisible,
 
     // Animation values
     miningButtonScale,
@@ -194,6 +238,7 @@ export const useMining = () => {
     handleMiningToggle,
     handleSettingsPress,
     handleQuickActionPress,
+    handleShowMoreClose,
     refreshMiningData,
     ...socialHandlers,
   };

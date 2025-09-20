@@ -1,6 +1,6 @@
 /**
  * Category Tabs Component
- * Displays achievement category filter tabs
+ * Displays task category filter tabs
  */
 
 import React from 'react';
@@ -9,10 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/components/ui';
 import { Colors, Spacing, BorderRadius } from '@/constants/design-tokens';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import type { AchievementCategory, CategoryKey } from '../types';
+import type { TaskCategory, CategoryKey } from '../types';
 
 interface CategoryTabsProps {
-  categories: AchievementCategory[];
+  categories: TaskCategory[];
   selectedCategory: CategoryKey;
   onCategorySelect: (category: CategoryKey) => void;
 }

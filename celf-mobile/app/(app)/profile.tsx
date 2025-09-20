@@ -90,14 +90,7 @@ export default function ProfileScreen() {
                 </Typography>
               </View>
               
-              <View style={{ alignItems: 'center' }}>
-                <Typography variant="h3" weight="bold" color="primary">
-                  {profileData.achievements}
-                </Typography>
-                <Typography variant="bodySmall" color="secondary">
-                  Achievements
-                </Typography>
-              </View>
+
             </View>
           </Card>
 

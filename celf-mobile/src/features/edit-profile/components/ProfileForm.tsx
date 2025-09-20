@@ -13,42 +13,44 @@ interface ProfileFormProps {
   onUpdateField: (field: keyof ProfileData, value: string) => void;
 }
 
+// Move FormField outside to prevent re-creation on every render
+const FormField: React.FC<{
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  editable?: boolean;
+}> = React.memo(({ label, value, onChangeText, placeholder, multiline = false, editable = true }) => (
+  <View style={{ marginBottom: Spacing.lg }}>
+    <Typography variant="bodyMedium" weight="semibold" style={{ marginBottom: Spacing.sm }}>
+      {label}
+    </Typography>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      multiline={multiline}
+      editable={editable}
+      style={{
+        backgroundColor: editable ? Colors.background.primary : Colors.background.tertiary,
+        borderWidth: 1,
+        borderColor: Colors.border.primary,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+        fontSize: 16,
+        color: editable ? Colors.text.primary : Colors.text.secondary,
+        minHeight: multiline ? 80 : 48,
+        textAlignVertical: multiline ? 'top' : 'center',
+      }}
+    />
+  </View>
+));
+
 const ProfileForm: React.FC<ProfileFormProps> = ({
   profileData,
   onUpdateField,
 }) => {
-  const FormField: React.FC<{
-    label: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    placeholder?: string;
-    multiline?: boolean;
-    editable?: boolean;
-  }> = ({ label, value, onChangeText, placeholder, multiline = false, editable = true }) => (
-    <View style={{ marginBottom: Spacing.lg }}>
-      <Typography variant="bodyMedium" weight="semibold" style={{ marginBottom: Spacing.sm }}>
-        {label}
-      </Typography>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        multiline={multiline}
-        editable={editable}
-        style={{
-          backgroundColor: editable ? Colors.background.primary : Colors.background.tertiary,
-          borderWidth: 1,
-          borderColor: Colors.border.primary,
-          borderRadius: BorderRadius.md,
-          padding: Spacing.md,
-          fontSize: 16,
-          color: editable ? Colors.text.primary : Colors.text.secondary,
-          minHeight: multiline ? 80 : 48,
-          textAlignVertical: multiline ? 'top' : 'center',
-        }}
-      />
-    </View>
-  );
 
   return (
     <Card variant="default" style={{ marginBottom: Spacing['2xl'] }}>

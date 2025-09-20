@@ -163,7 +163,7 @@ class WalletController {
         let displayDescription = tx.description;
 
         // Determine display type based on user perspective
-        if (tx.type === 'send' || tx.type === 'receive' || tx.type === 'transfer') {
+        if (tx.type === 'send' || tx.type === 'receive') {
           if (isUserSender) {
             displayType = 'send';
             displayAmount = tx.amount; // Positive amount, will be shown as negative in UI
@@ -239,7 +239,7 @@ class WalletController {
       let displayDescription = transaction.description;
 
       // Determine display type based on user perspective
-      if (transaction.type === 'send' || transaction.type === 'receive' || transaction.type === 'transfer') {
+      if (transaction.type === 'send' || transaction.type === 'receive') {
         if (isUserSender) {
           displayType = 'send';
           if (transaction.toUserId) {
@@ -427,7 +427,7 @@ class WalletController {
         toUserId: recipient.id,
         toAddress: recipientWallet.currentAddress,
         amount,
-        type: 'transfer', // Use 'transfer' as the base type
+        type: 'send', // Use 'send' as the transaction type (valid enum value)
         status: 'completed',
         description: description || `Transfer between ${req.user.email} and ${recipient.email}`,
         fee: 0
@@ -465,6 +465,15 @@ class WalletController {
       }
 
       console.log(`✅ WalletController: Transfer completed successfully`);
+      console.log(`✅ WalletController: Transaction object:`, {
+        id: transaction.id,
+        _id: transaction._id,
+        type: transaction.type,
+        amount: transaction.amount,
+        status: transaction.status,
+        description: transaction.description,
+        keys: Object.keys(transaction)
+      });
 
       res.status(201).json(createResponse(true, 'Transaction completed successfully', {
         transaction: transaction,

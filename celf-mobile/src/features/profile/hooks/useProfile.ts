@@ -43,7 +43,6 @@ export const useProfile = () => {
         joinDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '2024-12-15',
         totalMined: 0,
         referrals: 0,
-        achievements: 0,
       };
       setProfileData(fallbackData);
     } finally {
@@ -91,7 +90,6 @@ export const useProfile = () => {
       joinDate: '2024-12-15',
       totalMined: 0,
       referrals: 0,
-      achievements: 0,
     },
     menuItems,
     handleMenuPress,

@@ -66,7 +66,22 @@ export function useTasks() {
       }
     } catch (err) {
       console.error('❌ Error fetching tasks:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to fetch tasks';
+      if (err instanceof Error) {
+        if (err.message.includes('Network error') || err.message.includes('fetch')) {
+          errorMessage = err.message;
+        } else if (err.message.includes('401')) {
+          errorMessage = 'Authentication failed. Please login again.';
+        } else if (err.message.includes('500')) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
 
       // Fallback to empty data
       setTasks([]);
@@ -97,9 +112,14 @@ export function useTasks() {
     router.push(`/task-details?id=${taskId}`);
   };
 
-  // Refresh tasks
+  // Refresh tasks with better error handling
   const refreshTasks = async () => {
-    await fetchTasks();
+    try {
+      await fetchTasks();
+    } catch (err) {
+      console.error('❌ Error refreshing tasks:', err);
+      // Error is already handled in fetchTasks
+    }
   };
 
   // Claim reward

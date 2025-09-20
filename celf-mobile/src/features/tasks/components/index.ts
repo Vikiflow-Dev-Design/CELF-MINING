@@ -6,3 +6,4 @@
 export { StatsOverview } from './StatsOverview';
 export { CategoryTabs } from './CategoryTabs';
 export { TaskCard } from './TaskCard';
+export { NetworkErrorState } from './NetworkErrorState';

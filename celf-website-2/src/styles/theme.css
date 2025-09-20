@@ -28,6 +28,20 @@
   --color-border-accent-hover: rgba(158, 255, 0, 0.3);
   --color-border-featured: #9EFF00;
 
+  /* Admin-specific colors */
+  --color-admin-success: #22C55E;
+  --color-admin-warning: #F59E0B;
+  --color-admin-error: #EF4444;
+  --color-admin-info: #3B82F6;
+  --color-admin-success-bg: rgba(34, 197, 94, 0.1);
+  --color-admin-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-admin-error-bg: rgba(239, 68, 68, 0.1);
+  --color-admin-info-bg: rgba(59, 130, 246, 0.1);
+  --color-admin-success-border: rgba(34, 197, 94, 0.3);
+  --color-admin-warning-border: rgba(245, 158, 11, 0.3);
+  --color-admin-error-border: rgba(239, 68, 68, 0.3);
+  --color-admin-info-border: rgba(59, 130, 246, 0.3);
+
   /* Gradients */
   --gradient-primary-glow: radial-gradient(circle, rgba(158, 255, 0, 0.3) 0%, rgba(158, 255, 0, 0) 70%);
   --gradient-card-glow: radial-gradient(circle at center, rgba(158, 255, 0, 0.1) 0%, transparent 50%);
@@ -35,12 +49,39 @@
   --gradient-device: linear-gradient(145deg, #2A2A2A 0%, #1A1A1A 100%);
   --gradient-globe-glow: radial-gradient(circle, rgba(158, 255, 0, 0.3) 0%, rgba(158, 255, 0, 0.1) 50%, transparent 100%);
 
+  /* Admin-specific gradients */
+  --gradient-admin-bg: radial-gradient(ellipse at top, rgba(158, 255, 0, 0.03) 0%, transparent 50%),
+                       radial-gradient(ellipse at bottom left, rgba(0, 255, 148, 0.02) 0%, transparent 50%);
+  --gradient-admin-card: linear-gradient(135deg, rgba(26, 26, 26, 0.8) 0%, rgba(26, 26, 26, 0.4) 100%);
+  --gradient-admin-sidebar: linear-gradient(180deg, rgba(26, 26, 26, 1) 0%, rgba(10, 10, 10, 1) 100%);
+  --gradient-admin-header: linear-gradient(90deg, rgba(26, 26, 26, 0.95) 0%, rgba(10, 10, 10, 0.95) 100%);
+  --gradient-button-primary: linear-gradient(135deg, #9EFF00 0%, #7ACC00 100%);
+  --gradient-button-secondary: linear-gradient(135deg, rgba(26, 26, 26, 0.8) 0%, rgba(26, 26, 26, 0.6) 100%);
+  --gradient-status-success: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+  --gradient-status-warning: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+  --gradient-status-error: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+  --gradient-status-info: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+
   /* Shadows */
   --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
   --shadow-card-hover: 0 12px 48px rgba(0, 0, 0, 0.4);
   --shadow-device: 0 20px 60px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 30px rgba(158, 255, 0, 0.2);
   --shadow-globe-glow: 0 0 100px rgba(158, 255, 0, 0.3);
+
+  /* Admin-specific shadows */
+  --shadow-admin-card: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(158, 255, 0, 0.1);
+  --shadow-admin-card-hover: 0 16px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(158, 255, 0, 0.2);
+  --shadow-admin-sidebar: inset 1px 0 0 rgba(158, 255, 0, 0.1), 4px 0 24px rgba(0, 0, 0, 0.3);
+  --shadow-admin-header: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 -1px 0 rgba(158, 255, 0, 0.1);
+  --shadow-admin-button: 0 4px 16px rgba(158, 255, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-admin-button-hover: 0 8px 32px rgba(158, 255, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --shadow-admin-modal: 0 24px 96px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(158, 255, 0, 0.1);
+  --shadow-admin-dropdown: 0 12px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(158, 255, 0, 0.1);
+  --shadow-success: 0 4px 16px rgba(34, 197, 94, 0.3);
+  --shadow-warning: 0 4px 16px rgba(245, 158, 11, 0.3);
+  --shadow-error: 0 4px 16px rgba(239, 68, 68, 0.3);
+  --shadow-info: 0 4px 16px rgba(59, 130, 246, 0.3);
 
   /* Border Radius */
   --radius-sm: 8px;
@@ -144,4 +185,152 @@ body {
 
 .animate-glow {
   animation: pulse-glow 2s infinite;
+}
+
+/* Modern Admin Utility Classes */
+.admin-card {
+  background: var(--gradient-admin-card);
+  border: 1px solid var(--color-border-accent);
+  box-shadow: var(--shadow-admin-card);
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+}
+
+.admin-card:hover {
+  border-color: var(--color-border-accent-hover);
+  box-shadow: var(--shadow-admin-card-hover);
+  transform: translateY(-2px);
+}
+
+.admin-button-primary {
+  background: var(--gradient-button-primary);
+  color: #000;
+  box-shadow: var(--shadow-admin-button);
+  transition: all 0.3s ease;
+}
+
+.admin-button-primary:hover {
+  box-shadow: var(--shadow-admin-button-hover);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.admin-status-success {
+  background: var(--gradient-status-success);
+  border: 1px solid var(--color-admin-success-border);
+  color: var(--color-admin-success);
+}
+
+.admin-status-warning {
+  background: var(--gradient-status-warning);
+  border: 1px solid var(--color-admin-warning-border);
+  color: var(--color-admin-warning);
+}
+
+.admin-status-error {
+  background: var(--gradient-status-error);
+  border: 1px solid var(--color-admin-error-border);
+  color: var(--color-admin-error);
+}
+
+.admin-status-info {
+  background: var(--gradient-status-info);
+  border: 1px solid var(--color-admin-info-border);
+  color: var(--color-admin-info);
+}
+
+.admin-sidebar {
+  background: var(--gradient-admin-sidebar);
+  box-shadow: var(--shadow-admin-sidebar);
+}
+
+.admin-header {
+  background: var(--gradient-admin-header);
+  box-shadow: var(--shadow-admin-header);
+  backdrop-filter: blur(16px);
+}
+
+.admin-modal {
+  box-shadow: var(--shadow-admin-modal);
+  backdrop-filter: blur(16px);
+}
+
+.admin-dropdown {
+  box-shadow: var(--shadow-admin-dropdown);
+  backdrop-filter: blur(12px);
+}
+
+/* Enhanced animations for admin interface */
+@keyframes admin-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes admin-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes admin-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(158, 255, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(158, 255, 0, 0.4);
+  }
+}
+
+.admin-slide-in {
+  animation: admin-slide-in 0.3s ease-out;
+}
+
+.admin-scale-in {
+  animation: admin-scale-in 0.2s ease-out;
+}
+
+.admin-glow-pulse {
+  animation: admin-glow-pulse 2s infinite;
+}
+
+/* Improved focus states for admin interface */
+.admin-focus:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 3px rgba(158, 255, 0, 0.2);
+}
+
+/* Custom scrollbar for admin interface */
+.admin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-primary) rgba(26, 26, 26, 0.3);
+}
+
+.admin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-track {
+  background: rgba(26, 26, 26, 0.3);
+  border-radius: 3px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-brand-primary) 0%, var(--color-brand-primary-dark) 100%);
+  border-radius: 3px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #B3FF33 0%, #8FDD00 100%);
 }

@@ -84,8 +84,7 @@ function AppContent() {
           <Stack.Screen name="help-center" />
           <Stack.Screen name="edit-profile" />
           <Stack.Screen name="no-internet" />
-          <Stack.Screen name="achievement-details" />
-          <Stack.Screen name="achievements" />
+
           <Stack.Screen name="loading" />
           <Stack.Screen name="transaction-details" />
           <Stack.Screen name="transaction-history" />

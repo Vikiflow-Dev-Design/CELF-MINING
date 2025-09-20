@@ -639,8 +639,30 @@ export class MiningService {
         this.updateCountdown();
       } else {
         console.log('No active mining session found');
-        // Make sure wallet is initialized with current balance
-        walletStore.initializeMiningBalance(walletStore.miningIntegration.baseBalance);
+        // Only initialize mining balance if wallet doesn't already have a balance
+        const currentBalance = walletStore.totalBalance;
+        const baseBalance = walletStore.miningIntegration.baseBalance;
+
+        if (currentBalance > 0) {
+          // Wallet already has a balance, use it as the base balance
+          console.log('Wallet already has balance, using it as base:', currentBalance);
+          walletStore.initializeMiningBalance(currentBalance);
+        } else if (baseBalance > 0) {
+          // Use existing base balance
+          console.log('Using existing base balance:', baseBalance);
+          walletStore.initializeMiningBalance(baseBalance);
+        } else {
+          // No balance available, check if we need to sync
+          const lastSyncTime = walletStore.miningIntegration.lastSyncTime;
+          const timeSinceLastSync = Date.now() - lastSyncTime;
+
+          if (timeSinceLastSync > 5000) { // Only sync if more than 5 seconds since last sync
+            console.log('No balance available, syncing with backend...');
+            await walletStore.syncBalanceWithBackend();
+          } else {
+            console.log('No balance available but recently synced, skipping additional sync');
+          }
+        }
       }
     } catch (error) {
       console.error('Mining Service: Error checking existing session:', error);

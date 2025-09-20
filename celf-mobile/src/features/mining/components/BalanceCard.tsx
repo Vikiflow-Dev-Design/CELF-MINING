@@ -30,11 +30,21 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
 
   // Ensure balance is loaded when component mounts (only once)
   useEffect(() => {
-    if (storeBalance === 0 && !isLoadingBalance) {
-      console.log('💰 BalanceCard: Balance is 0, refreshing...');
+    // Only refresh if balance is 0 AND we haven't recently synced AND not currently loading
+    const lastSyncTime = miningIntegration.lastSyncTime;
+    const timeSinceLastSync = Date.now() - lastSyncTime;
+    const shouldRefresh = storeBalance === 0 &&
+                         !isLoadingBalance &&
+                         timeSinceLastSync > 10000 && // Increased to 10 seconds to reduce redundant calls
+                         miningIntegration.baseBalance === 0; // Only if mining hasn't set a base balance
+
+    if (shouldRefresh) {
+      console.log('💰 BalanceCard: Balance is 0 and no recent sync, refreshing...');
       refreshBalance().catch(error => {
         console.error('❌ BalanceCard: Failed to refresh balance:', error);
       });
+    } else if (storeBalance === 0) {
+      console.log('💰 BalanceCard: Balance is 0 but recently synced or loading, skipping refresh');
     }
   }, []); // Empty dependency array - only run once on mount
 
@@ -192,14 +202,6 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
             style={{ marginBottom: Spacing.xs }}>
             {getFormattedBalance(displayBalance)}
           </Typography>
-          {isLoadingBalance && (
-            <Ionicons
-              name="refresh-outline"
-              size={20}
-              color="#666"
-              style={{ marginLeft: Spacing.sm }}
-            />
-          )}
         </View>
 
         <Typography variant="bodyLarge" color="primary" weight="semibold">

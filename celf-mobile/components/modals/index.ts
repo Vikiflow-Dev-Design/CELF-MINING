@@ -2,5 +2,6 @@ export { MiningConfirmationModal, type MiningConfirmationModalProps } from './Mi
 export { TransactionConfirmationModal, type TransactionConfirmationModalProps } from './TransactionConfirmationModal';
 export { LogoutConfirmationModal, type LogoutConfirmationModalProps } from './LogoutConfirmationModal';
 export { MiningRateInfoModal, type MiningRateInfoModalProps } from './MiningRateInfoModal';
-export { AchievementUnlockedModal, type AchievementUnlockedModalProps } from './AchievementUnlockedModal';
+export { ShowMoreModal, type ShowMoreModalProps } from './ShowMoreModal';
+
 export { ReferralSuccessModal, type ReferralSuccessModalProps } from './ReferralSuccessModal';

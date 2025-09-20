@@ -19,6 +19,8 @@ export interface Task {
   tips?: string[];
   requirements?: string[];
   rewardClaimed?: boolean;
+  isLinkTask?: boolean;
+  linkUrl?: string;
 }
 
 export interface TaskStats {

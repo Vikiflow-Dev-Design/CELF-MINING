@@ -47,6 +47,17 @@ module.exports = {
           "accent-hover": "rgba(158, 255, 0, 0.3)",
           featured: "#9EFF00",
         },
+        // Admin Status Colors
+        admin: {
+          success: "#22C55E",
+          warning: "#F59E0B",
+          error: "#EF4444",
+          info: "#3B82F6",
+          "success-bg": "rgba(34, 197, 94, 0.1)",
+          "warning-bg": "rgba(245, 158, 11, 0.1)",
+          "error-bg": "rgba(239, 68, 68, 0.1)",
+          "info-bg": "rgba(59, 130, 246, 0.1)",
+        },
       },
       backgroundImage: {
         // CELF Gradients
@@ -60,6 +71,13 @@ module.exports = {
         "globe-glow":
           "radial-gradient(circle, rgba(158, 255, 0, 0.3) 0%, rgba(158, 255, 0, 0.1) 50%, transparent 100%)",
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        // Admin-specific gradients
+        "admin-bg": "radial-gradient(ellipse at top, rgba(158, 255, 0, 0.03) 0%, transparent 50%), radial-gradient(ellipse at bottom left, rgba(0, 255, 148, 0.02) 0%, transparent 50%)",
+        "admin-card": "linear-gradient(135deg, rgba(26, 26, 26, 0.8) 0%, rgba(26, 26, 26, 0.4) 100%)",
+        "admin-sidebar": "linear-gradient(180deg, rgba(26, 26, 26, 1) 0%, rgba(10, 10, 10, 1) 100%)",
+        "admin-header": "linear-gradient(90deg, rgba(26, 26, 26, 0.95) 0%, rgba(10, 10, 10, 0.95) 100%)",
+        "button-primary": "linear-gradient(135deg, #9EFF00 0%, #7ACC00 100%)",
+        "button-secondary": "linear-gradient(135deg, rgba(26, 26, 26, 0.8) 0%, rgba(26, 26, 26, 0.6) 100%)",
       },
       boxShadow: {
         // CELF Shadows
@@ -68,6 +86,18 @@ module.exports = {
         device: "0 20px 60px rgba(0, 0, 0, 0.5)",
         glow: "0 0 30px rgba(158, 255, 0, 0.2)",
         "globe-glow": "0 0 100px rgba(158, 255, 0, 0.3)",
+        // Admin-specific shadows
+        "admin-card": "0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(158, 255, 0, 0.1)",
+        "admin-card-hover": "0 16px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(158, 255, 0, 0.2)",
+        "admin-sidebar": "inset 1px 0 0 rgba(158, 255, 0, 0.1), 4px 0 24px rgba(0, 0, 0, 0.3)",
+        "admin-header": "0 4px 24px rgba(0, 0, 0, 0.2), inset 0 -1px 0 rgba(158, 255, 0, 0.1)",
+        "admin-button": "0 4px 16px rgba(158, 255, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        "admin-button-hover": "0 8px 32px rgba(158, 255, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+        "admin-modal": "0 24px 96px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(158, 255, 0, 0.1)",
+        "success": "0 4px 16px rgba(34, 197, 94, 0.3)",
+        "warning": "0 4px 16px rgba(245, 158, 11, 0.3)",
+        "error": "0 4px 16px rgba(239, 68, 68, 0.3)",
+        "info": "0 4px 16px rgba(59, 130, 246, 0.3)",
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -37,7 +37,24 @@ export function useTaskDetails(taskId: string) {
       }
     } catch (err) {
       console.error('❌ Error fetching task details:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch task details');
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to fetch task details';
+      if (err instanceof Error) {
+        if (err.message.includes('Network error') || err.message.includes('fetch')) {
+          errorMessage = err.message;
+        } else if (err.message.includes('401')) {
+          errorMessage = 'Authentication failed. Please login again.';
+        } else if (err.message.includes('404')) {
+          errorMessage = 'Task not found.';
+        } else if (err.message.includes('500')) {
+          errorMessage = 'Server error. Please try again later.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
       setTask(null);
     } finally {
       setLoading(false);
